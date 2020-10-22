@@ -1,0 +1,129 @@
+#pragma kernel Transfer
+
+float3 CutoffMin;
+float3 CutoffMax;
+
+uint BufferSize0;
+uint2 MapDimensions0;
+StructuredBuffer<uint> ColorBuffer0;
+StructuredBuffer<float> PositionBuffer0;
+StructuredBuffer<float> RemapBuffer0;
+float Brightness0;
+float Saturation0;
+
+uint BufferSize1;
+uint2 MapDimensions1;
+StructuredBuffer<uint> ColorBuffer1;
+StructuredBuffer<float> PositionBuffer1;
+StructuredBuffer<float> RemapBuffer1;
+float Brightness1;
+float Saturation1;
+
+uint BufferSize2;
+uint2 MapDimensions2;
+StructuredBuffer<uint> ColorBuffer2;
+StructuredBuffer<float> PositionBuffer2;
+StructuredBuffer<float> RemapBuffer2;
+float Brightness2;
+float Saturation2;
+
+uint BufferSize3;
+uint2 MapDimensions3;
+StructuredBuffer<uint> ColorBuffer3;
+StructuredBuffer<float> PositionBuffer3;
+StructuredBuffer<float> RemapBuffer3;
+float Brightness3;
+float Saturation3;
+
+RWStructuredBuffer<float3> Colors;
+RWStructuredBuffer<float3> Positions;
+
+// Copy-pasted from UnityCG.cginc
+inline half3 GammaToLinearSpace (half3 sRGB)
+{
+    return sRGB * (sRGB * (sRGB * 0.305306011h + 0.682171111h) + 0.012522878h);
+}
+
+[numthreads(64, 1, 1)]
+void Transfer(uint id : SV_DispatchThreadID)
+{
+    float3 pos;
+    uint rawColor;
+    float2 colorAdjust;
+
+    if (id < BufferSize0)
+    {
+        pos = float3(
+            PositionBuffer0[id * 3],
+            -PositionBuffer0[id * 3 + 1],
+            PositionBuffer0[id * 3 + 2]
+        );
+        float2 uv = float2(RemapBuffer0[id * 2], RemapBuffer0[id * 2 + 1]);
+        uint2 idc = uv * MapDimensions0;
+        rawColor = ColorBuffer0[idc.x + idc.y * MapDimensions0.x];
+        colorAdjust = float2(Brightness0, Saturation0);
+    }
+    else if (id < BufferSize1)
+    {
+        uint id1 = id - BufferSize0;
+        pos = float3(
+            PositionBuffer1[id1 * 3],
+            -PositionBuffer1[id1 * 3 + 1],
+            PositionBuffer1[id1 * 3 + 2]
+        );
+        float2 uv = float2(RemapBuffer1[id1 * 2], RemapBuffer1[id1 * 2 + 1]);
+        uint2 id1c = uv * MapDimensions1;
+        rawColor = ColorBuffer1[id1c.x + id1c.y * MapDimensions1.x];
+        colorAdjust = float2(Brightness1, Saturation1);
+    }
+    else if (id < BufferSize2)
+    {
+        uint id2 = id - BufferSize1;
+        pos = float3(
+            PositionBuffer2[id2 * 3],
+            -PositionBuffer2[id2 * 3 + 1],
+            PositionBuffer2[id2 * 3 + 2]
+        );
+        float2 uv = float2(RemapBuffer2[id2 * 2], RemapBuffer2[id2 * 2 + 1]);
+        uint2 id2c = uv * MapDimensions2;
+        rawColor = ColorBuffer2[id2c.x + id2c.y * MapDimensions2.x];
+        colorAdjust = float2(Brightness2, Saturation2);
+    }
+    else if (id < BufferSize3)
+    {
+        uint id3 = id - BufferSize2;
+        pos = float3(
+            PositionBuffer3[id3 * 3],
+            -PositionBuffer3[id3 * 3 + 1],
+            PositionBuffer3[id3 * 3 + 2]
+        );
+        float2 uv = float2(RemapBuffer3[id3 * 2], RemapBuffer3[id3 * 2 + 1]);
+        uint2 id3c = uv * MapDimensions3;
+        rawColor = ColorBuffer3[id3c.x + id3c.y * MapDimensions3.x];
+        colorAdjust = float2(Brightness3, Saturation3);
+    }
+    else
+    {
+        pos = float3(0, 0, 0);
+        rawColor = 0x00000000;
+    }
+
+    // discard points outside of the cutoff area
+    uint insideX = step(CutoffMin.x, pos.x) * step(pos.x, CutoffMax.x);
+    uint insideY = step(CutoffMin.y, pos.y) * step(pos.y, CutoffMax.y);
+    uint insideZ = step(CutoffMin.z, pos.z) * step(pos.z, CutoffMax.z);
+    uint insideBox = insideX * insideY * insideZ;
+
+    pos = pos * insideBox;
+    rawColor = rawColor * insideBox;
+
+    // Color adjustment to correct color-space and placement in a float3
+    float3 color = (uint3(rawColor, rawColor >> 8, rawColor >> 16) & 0xffU) / 255.0;
+    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+    color = lerp(colorAdjust.x, 1, lerp(luma, color, colorAdjust.y));
+    color = GammaToLinearSpace(color);
+
+    // Output
+    Positions[id] = pos;
+    Colors[id] = color;
+}
