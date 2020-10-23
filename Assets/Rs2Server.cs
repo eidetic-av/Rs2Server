@@ -14,9 +14,6 @@ namespace Eidetic.Rs2
 {
     public class Rs2Server : MonoBehaviour
     {
-        public static bool RenderCameraPreviews = true;
-        public bool renderCameraPreviews = true;
-
         const int CameraCount = 4;
         const int DepthWidth = 640;
         const int DepthHeight = 480;
@@ -28,21 +25,26 @@ namespace Eidetic.Rs2
         [Serializable]
         public class DeviceOptions
         {
-            public bool Active = false;
+            public bool Active = true;
             [Range(0f, 1f)]
             public float Brightness = 0f;
             [Range(0f, 10f)]
             public float Saturation = 1f;
-
+            // Rotation in quaternions
+            public Vector4 Rotation = Vector4.zero;
+            // Translation in metres
+            public Vector3 Translation = Vector3.zero;
         }
         public List<DeviceOptions> Cameras;
 
         public Vector3 CutoffMin = new Vector3(-5, -5, 0);
         public Vector3 CutoffMax = new Vector3(5, 5, 10);
 
-        Context Rs2Context;
+        public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
 
-        Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
+        public bool Calibrate = false;
+
+        Context Rs2Context;
 
         ComputeShader TransferShader;
 
@@ -54,9 +56,11 @@ namespace Eidetic.Rs2
         DeviceContext DeviceContext;
         IntPtr GLContext = IntPtr.Zero;
 
+        public static Rs2Server Instance;
+
         void Awake()
         {
-            // return;
+            Instance = this;
             DeviceContext = DeviceContext.Create();
             GLContext = DeviceContext.CreateContext(IntPtr.Zero);
             DeviceContext.MakeCurrent(GLContext);
@@ -113,18 +117,38 @@ namespace Eidetic.Rs2
 
         void Update()
         {
+            if (Calibrate)
+            {
+                RunCalibration();
+                Calibrate = false;
+            }
+
             if (Cameras.All(cam => !cam.Active))
                 return;
 
             for(int i = 0; i < Drivers.Count(); i++)
                 if (Cameras[i].Active) Drivers.Values.ElementAt(i).UpdateFrames();
 
+            if (DeviceContext == null) return;
             SendPointCloudMaps();
         }
 
-        void LateUpdate()
+        void RunCalibration()
         {
-            RenderCameraPreviews = renderCameraPreviews;
+            for(int i = 0; i < Drivers.Count(); i++)
+            {
+                var borderImage = GameObject.Find($"FrameBorder{i}")
+                    .GetComponent<UnityEngine.UI.RawImage>();
+                (Vector3 pos, Vector4 rot) pose;
+                if (ArucoGenerator.Instance.Generate(i, out pose))
+                {
+                    Debug.Log("Successfully calibrated " + i);
+                    Cameras[i].Translation = pose.pos;
+                    Cameras[i].Rotation = pose.rot;
+                    borderImage.color = Color.green;
+                }
+                else borderImage.color = Color.red;
+            }
         }
 
         unsafe void SendPointCloudMaps()
@@ -151,11 +175,15 @@ namespace Eidetic.Rs2
                 var remapBuffer = !dummy ? converter.RemapBuffer : new ComputeBuffer(1, sizeof(float));
                 var brightness = !dummy ? Cameras[i].Brightness : 0;
                 var saturation = !dummy ? Cameras[i].Saturation : 1;
+                var rotation = !dummy ? Cameras[i].Rotation : Vector4.zero;
+                var translation = !dummy ? Cameras[i].Translation : Vector3.zero;
 
                 TransferShader.SetInt($"BufferSize{i}", (i + 1) * CamPoints);
                 TransferShader.SetInts($"MapDimensions{i}", dimensions);
                 TransferShader.SetFloat($"Brightness{i}", brightness);
                 TransferShader.SetFloat($"Saturation{i}", saturation);
+                TransferShader.SetVector($"Rotation{i}", rotation);
+                TransferShader.SetVector($"Translation{i}", translation);
                 TransferShader.SetBuffer(0, $"ColorBuffer{i}", colorBuffer);
                 TransferShader.SetBuffer(0, $"PositionBuffer{i}", positionBuffer);
                 TransferShader.SetBuffer(0, $"RemapBuffer{i}", remapBuffer);

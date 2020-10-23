@@ -14,22 +14,23 @@ namespace Eidetic.Rs2
         public string DeviceSerial;
         public (int width, int height) DepthResolution;
         public (int width, int height) ColorResolution;
+        public (Intrinsics color, Intrinsics depth) Intrinsics;
         public int DepthFramerate;
         public int ColorFramerate;
+
+        public readonly object FrameLock = new object();
+
+        public DepthConverter Converter;
+
+        public RawImage ColorImage;
+        public Texture2D ColorTexture;
+
+        (VideoFrame color, Points points) Frame;
+        double FrameTime;
 
         Pipeline Pipe;
         Thread ProcessThread;
         bool Terminate;
-
-        (VideoFrame color, Points points) Frame;
-        (Intrinsics color, Intrinsics depth) Intrinsics;
-        public readonly object FrameLock = new object();
-
-        public DepthConverter Converter;
-        double FrameTime;
-
-        public RawImage ColorImage;
-        Texture2D ColorTexture;
 
         void ProcessFrames()
         {
@@ -125,7 +126,7 @@ namespace Eidetic.Rs2
                 if (Frame.color == null) return;
                 if (Frame.points == null) return;
 
-                if (ColorImage != null && Rs2Server.RenderCameraPreviews)
+                if (ColorImage != null)
                 {
                     if (ColorTexture == null)
                         ColorTexture = new Texture2D(Frame.color.Width, Frame.color.Height, Convert(Frame.color.Profile.Format), false, true);

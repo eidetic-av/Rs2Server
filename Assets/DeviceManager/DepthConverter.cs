@@ -92,7 +92,7 @@ namespace Eidetic.Rs2
             RemapBuffer = null;
         }
 
-        Vector4 IntrinsicsToVector(RealSense.Intrinsics i)
+        public static Vector4 IntrinsicsToVector(RealSense.Intrinsics i)
         {
             return new Vector4(i.ppx, i.ppy, i.fx, i.fy);
         }

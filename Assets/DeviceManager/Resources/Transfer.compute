@@ -10,6 +10,8 @@ StructuredBuffer<float> PositionBuffer0;
 StructuredBuffer<float> RemapBuffer0;
 float Brightness0;
 float Saturation0;
+float4 Rotation0;
+float3 Translation0;
 
 uint BufferSize1;
 uint2 MapDimensions1;
@@ -18,6 +20,8 @@ StructuredBuffer<float> PositionBuffer1;
 StructuredBuffer<float> RemapBuffer1;
 float Brightness1;
 float Saturation1;
+float4 Rotation1;
+float3 Translation1;
 
 uint BufferSize2;
 uint2 MapDimensions2;
@@ -26,6 +30,8 @@ StructuredBuffer<float> PositionBuffer2;
 StructuredBuffer<float> RemapBuffer2;
 float Brightness2;
 float Saturation2;
+float4 Rotation2;
+float3 Translation2;
 
 uint BufferSize3;
 uint2 MapDimensions3;
@@ -34,6 +40,8 @@ StructuredBuffer<float> PositionBuffer3;
 StructuredBuffer<float> RemapBuffer3;
 float Brightness3;
 float Saturation3;
+float4 Rotation3;
+float3 Translation3;
 
 RWStructuredBuffer<float3> Colors;
 RWStructuredBuffer<float3> Positions;
@@ -50,6 +58,8 @@ void Transfer(uint id : SV_DispatchThreadID)
     float3 pos;
     uint rawColor;
     float2 colorAdjust;
+    float4 rotation;
+    float3 translation;
 
     if (id < BufferSize0)
     {
@@ -58,6 +68,8 @@ void Transfer(uint id : SV_DispatchThreadID)
             -PositionBuffer0[id * 3 + 1],
             PositionBuffer0[id * 3 + 2]
         );
+        rotation = Rotation0;
+        translation = Translation0;
         float2 uv = float2(RemapBuffer0[id * 2], RemapBuffer0[id * 2 + 1]);
         uint2 idc = uv * MapDimensions0;
         rawColor = ColorBuffer0[idc.x + idc.y * MapDimensions0.x];
@@ -71,6 +83,8 @@ void Transfer(uint id : SV_DispatchThreadID)
             -PositionBuffer1[id1 * 3 + 1],
             PositionBuffer1[id1 * 3 + 2]
         );
+        rotation = Rotation1;
+        translation = Translation1;
         float2 uv = float2(RemapBuffer1[id1 * 2], RemapBuffer1[id1 * 2 + 1]);
         uint2 id1c = uv * MapDimensions1;
         rawColor = ColorBuffer1[id1c.x + id1c.y * MapDimensions1.x];
@@ -84,6 +98,8 @@ void Transfer(uint id : SV_DispatchThreadID)
             -PositionBuffer2[id2 * 3 + 1],
             PositionBuffer2[id2 * 3 + 2]
         );
+        rotation = Rotation2;
+        translation = Translation2;
         float2 uv = float2(RemapBuffer2[id2 * 2], RemapBuffer2[id2 * 2 + 1]);
         uint2 id2c = uv * MapDimensions2;
         rawColor = ColorBuffer2[id2c.x + id2c.y * MapDimensions2.x];
@@ -97,6 +113,8 @@ void Transfer(uint id : SV_DispatchThreadID)
             -PositionBuffer3[id3 * 3 + 1],
             PositionBuffer3[id3 * 3 + 2]
         );
+        rotation = Rotation3;
+        translation = Translation3;
         float2 uv = float2(RemapBuffer3[id3 * 2], RemapBuffer3[id3 * 2 + 1]);
         uint2 id3c = uv * MapDimensions3;
         rawColor = ColorBuffer3[id3c.x + id3c.y * MapDimensions3.x];
@@ -105,10 +123,17 @@ void Transfer(uint id : SV_DispatchThreadID)
     else
     {
         pos = float3(0, 0, 0);
+        rotation = float4(0, 0, 0, 0);
+        translation = float3(0, 0, 0);
         rawColor = 0x00000000;
     }
 
-    // discard points outside of the cutoff area
+    // TODO this is happening in the wrong order or something
+    // transform points
+    pos = pos + 2.0 * cross(cross(pos, rotation.xyz) + rotation.w * pos, rotation.xyz);
+    pos = pos + translation;
+
+    // discard points outside of the ABBox cutoff area
     uint insideX = step(CutoffMin.x, pos.x) * step(pos.x, CutoffMax.x);
     uint insideY = step(CutoffMin.y, pos.y) * step(pos.y, CutoffMax.y);
     uint insideZ = step(CutoffMin.z, pos.z) * step(pos.z, CutoffMax.z);
@@ -117,7 +142,7 @@ void Transfer(uint id : SV_DispatchThreadID)
     pos = pos * insideBox;
     rawColor = rawColor * insideBox;
 
-    // Color adjustment to correct color-space and placement in a float3
+    // Color adjustment to correct color-space, and placement in a float3
     float3 color = (uint3(rawColor, rawColor >> 8, rawColor >> 16) & 0xffU) / 255.0;
     float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
     color = lerp(colorAdjust.x, 1, lerp(luma, color, colorAdjust.y));
