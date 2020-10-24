@@ -13,6 +13,7 @@ using static Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility;
 
 namespace Eidetic.Rs2
 {
+    [Serializable]
     public partial class Rs2Server : MonoBehaviour
     {
         const int CameraCount = 4;
@@ -23,48 +24,28 @@ namespace Eidetic.Rs2
         const int StreamWidth = DepthWidth * 3;
         const int StreamHeight = DepthHeight * CameraCount * 2;
 
-        [Serializable]
-        public class DeviceOptions
-        {
-            public bool Active = true;
-            public bool Paused = false;
-            [Range(0f, 1f)]
-            public float Brightness = 0f;
-            [Range(0f, 10f)]
-            public float Saturation = 1f;
-            // Calibration rotation in quaternions
-            public Vector4 CalibrationRotation = Vector4.zero;
-            // Manual rotation in euler angles
-            public Vector3 Rotation = Vector3.zero;
-            // Translation in metres
-            public Vector3 CalibrationTranslation = Vector3.zero;
-            public Vector3 PreTranslation = Vector3.zero;
-            public Vector3 PostTranslation = Vector3.zero;
-            public (Vector3 Min, Vector3 Max) PointThreshold = (Vector3.one * -10, Vector3.one * 10);
-        }
+        public static Rs2Server Instance;
+
+        public string CurrentConfigName = "Rs2Config";
         public List<DeviceOptions> Cameras;
 
         public Vector3 ABBoxMin = new Vector3(-10, -10, -10);
         public Vector3 ABBoxMax = new Vector3(10, 10, 10);
 
+        [NonSerialized]
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
 
         Context Rs2Context;
-
         ComputeShader TransferShader;
-
         NativeArray<float3> SpoutBuffer;
         SpoutSender SpoutSender;
-
         DeviceContext DeviceContext;
         IntPtr GLContext = IntPtr.Zero;
 
-        public static Rs2Server Instance;
-
         void Awake()
         {
-            // return;
             Instance = this;
+            // return;
             DeviceContext = DeviceContext.Create();
             GLContext = DeviceContext.CreateContext(IntPtr.Zero);
             DeviceContext.MakeCurrent(GLContext);
@@ -115,6 +96,7 @@ namespace Eidetic.Rs2
             SpoutSender = new SpoutSender();
             SpoutSender.CreateSender("Rs2", StreamWidth, StreamHeight, 0);
 
+            TryLoadLatestJson();
             InitialiseUI();
         }
 
@@ -129,8 +111,6 @@ namespace Eidetic.Rs2
             if (DeviceContext == null) return;
             SendPointCloudMaps();
         }
-
-        public Vector3 rotOffset0;
 
         void RunCalibration()
         {
@@ -181,8 +161,8 @@ namespace Eidetic.Rs2
                 var postTranslation = !dummy ? Cameras[i].PostTranslation : Vector3.zero;
                 var calibrationRotation = !dummy ? Cameras[i].CalibrationRotation : Vector4.zero;
                 var calibrationTranslation = !dummy ? Cameras[i].CalibrationTranslation : Vector3.zero;
-                var pointThresholdMin = !dummy ? Cameras[i].PointThreshold.Min : Vector3.one * -10;
-                var pointThresholdMax = !dummy ? Cameras[i].PointThreshold.Max : Vector3.one * 10;
+                var pointThresholdMin = !dummy ? Cameras[i].PointThresholdMin : Vector3.one * -10;
+                var pointThresholdMax = !dummy ? Cameras[i].PointThresholdMax : Vector3.one * 10;
 
                 TransferShader.SetInt($"BufferSize{i}", (i + 1) * CamPoints);
                 TransferShader.SetInts($"MapDimensions{i}", dimensions);
@@ -231,6 +211,57 @@ namespace Eidetic.Rs2
             DeviceContext = null;
         }
 
+        void TryLoadLatestJson()
+        {
+            var jsonFiles = System.IO.Directory.EnumerateFiles(
+                Application.dataPath, "*.json");
+            if (jsonFiles.Count() == 0) return;
 
+            var latestSave = jsonFiles.Select(fp => new System.IO.FileInfo(fp))
+                .OrderBy(info => info.LastWriteTime).Last()
+                .Name.Replace(".json", "");
+            Deserialize(latestSave, false);
+        }
+
+        void Serialize() => System.IO.File.WriteAllLines(
+            $"{Application.dataPath}\\{CurrentConfigName}.json",
+            new string[]{ JsonUtility.ToJson(Instance) });
+
+        void Deserialize(string configName, bool refreshUI = true)
+        {
+            try
+            {
+                var jsonString = System.IO.File.ReadAllText(
+                    $"{Application.dataPath}\\{configName}.json");
+                JsonUtility.FromJsonOverwrite(jsonString, Instance);
+                if (refreshUI) InitialiseUI();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("Failed loading from json; printing trace:");
+                Debug.LogError(e.StackTrace);
+            }
+        }
+
+        [Serializable]
+        public class DeviceOptions
+        {
+            public bool Active = true;
+            public bool Paused = false;
+            [Range(0f, 1f)]
+            public float Brightness = 0f;
+            [Range(0f, 10f)]
+            public float Saturation = 1f;
+            // Calibration rotation in quaternions
+            public Vector4 CalibrationRotation = Vector4.zero;
+            // Manual rotation in euler angles
+            public Vector3 Rotation = Vector3.zero;
+            // Translation in metres
+            public Vector3 CalibrationTranslation = Vector3.zero;
+            public Vector3 PreTranslation = Vector3.zero;
+            public Vector3 PostTranslation = Vector3.zero;
+            public Vector3 PointThresholdMin = Vector3.one * -10;
+            public Vector3 PointThresholdMax = Vector3.one * 10;
+        }
     }
 }

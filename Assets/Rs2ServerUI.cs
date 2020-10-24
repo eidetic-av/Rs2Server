@@ -13,8 +13,10 @@ namespace Eidetic.Rs2
                 var cam = Cameras[i];
                 var previewImage = GameObject.Find($"ColorTexture{i}")
                     .GetComponent<RawImage>();
+
                 var enableButton = GameObject.Find($"EnableButton{i}")
                     .GetComponent<Button>();
+                enableButton.onClick.RemoveAllListeners();
                 enableButton.onClick.AddListener(() =>
                 {
                     cam.Active = !cam.Active;
@@ -25,6 +27,7 @@ namespace Eidetic.Rs2
                 });
                 var pauseButton = GameObject.Find($"PauseButton{i}")
                     .GetComponent<Button>();
+                pauseButton.onClick.RemoveAllListeners();
                 pauseButton.onClick.AddListener(() =>
                 {
                     cam.Paused = !cam.Paused;
@@ -34,10 +37,14 @@ namespace Eidetic.Rs2
                 });
                 var brightnessSlider = GameObject.Find($"BrightnessSlider{i}")
                     .GetComponent<Slider>();
+                brightnessSlider.onValueChanged.RemoveAllListeners();
+                brightnessSlider.value = cam.Brightness;
                 brightnessSlider.onValueChanged.AddListener((newVal) =>
                                                             cam.Brightness = newVal );
                 var saturationSlider = GameObject.Find($"SaturationSlider{i}")
                     .GetComponent<Slider>();
+                saturationSlider.onValueChanged.RemoveAllListeners();
+                saturationSlider.value = cam.Saturation;
                 saturationSlider.onValueChanged.AddListener((newVal) =>
                                                             cam.Saturation = newVal );
 
@@ -45,55 +52,67 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var pointThresholdSliderXMax = GameObject.Find($"PointThresholdXMax{i}")
                     .GetComponent<Slider>();
+                pointThresholdSliderXMin.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderXMin.value = cam.PointThresholdMin.x;
                 pointThresholdSliderXMin.onValueChanged.AddListener((newVal) =>
                 {
                     var x = newVal;
-                    var y = cam.PointThreshold.Min.y;
-                    var z = cam.PointThreshold.Min.z;
-                    cam.PointThreshold.Min = new Vector3(x, y, z);
+                    var y = cam.PointThresholdMin.y;
+                    var z = cam.PointThresholdMin.z;
+                    cam.PointThresholdMin = new Vector3(x, y, z);
                 });
+                pointThresholdSliderXMax.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderXMax.value = cam.PointThresholdMax.x;
                 pointThresholdSliderXMax.onValueChanged.AddListener((newVal) =>
                 {
                     var x = newVal;
-                    var y = cam.PointThreshold.Max.y;
-                    var z = cam.PointThreshold.Max.z;
-                    cam.PointThreshold.Max = new Vector3(x, y, z);
+                    var y = cam.PointThresholdMax.y;
+                    var z = cam.PointThresholdMax.z;
+                    cam.PointThresholdMax = new Vector3(x, y, z);
                 });
                 var pointThresholdSliderYMin = GameObject.Find($"PointThresholdYMin{i}")
                     .GetComponent<Slider>();
                 var pointThresholdSliderYMax = GameObject.Find($"PointThresholdYMax{i}")
                     .GetComponent<Slider>();
+                pointThresholdSliderYMin.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderYMin.value = cam.PointThresholdMin.y;
                 pointThresholdSliderYMin.onValueChanged.AddListener((newVal) =>
                 {
-                    var x = cam.PointThreshold.Min.x;
+                    var x = cam.PointThresholdMin.x;
                     var y = newVal;
-                    var z = cam.PointThreshold.Min.z;
-                    cam.PointThreshold.Min = new Vector3(x, y, z);
+                    var z = cam.PointThresholdMin.z;
+                    cam.PointThresholdMin = new Vector3(x, y, z);
                 });
+                pointThresholdSliderYMax.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderYMax.value = cam.PointThresholdMax.y;
                 pointThresholdSliderYMax.onValueChanged.AddListener((newVal) =>
                 {
-                    var x = cam.PointThreshold.Max.x;
+                    var x = cam.PointThresholdMax.x;
                     var y = newVal;
-                    var z = cam.PointThreshold.Max.z;
-                    cam.PointThreshold.Max = new Vector3(x, y, z);
+                    var z = cam.PointThresholdMax.z;
+                    cam.PointThresholdMax = new Vector3(x, y, z);
                 });
                 var pointThresholdSliderZMin = GameObject.Find($"PointThresholdZMin{i}")
                     .GetComponent<Slider>();
                 var pointThresholdSliderZMax = GameObject.Find($"PointThresholdZMax{i}")
                     .GetComponent<Slider>();
+                pointThresholdSliderZMin.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderZMin.value = cam.PointThresholdMin.z;
                 pointThresholdSliderZMin.onValueChanged.AddListener((newVal) =>
                 {
-                    var x = cam.PointThreshold.Min.x;
-                    var y = cam.PointThreshold.Min.y;
+                    var x = cam.PointThresholdMin.x;
+                    var y = cam.PointThresholdMin.y;
                     var z = newVal;
-                    cam.PointThreshold.Min = new Vector3(x, y, z);
+                    cam.PointThresholdMin = new Vector3(x, y, z);
                 });
+                pointThresholdSliderZMax.onValueChanged.RemoveAllListeners();
+                pointThresholdSliderZMax.value = cam.PointThresholdMax.z;
                 pointThresholdSliderZMax.onValueChanged.AddListener((newVal) =>
                 {
-                    var x = cam.PointThreshold.Max.x;
-                    var y = cam.PointThreshold.Max.y;
+                    var x = cam.PointThresholdMax.x;
+                    var y = cam.PointThresholdMax.y;
                     var z = newVal;
-                    cam.PointThreshold.Max = new Vector3(x, y, z);
+                    cam.PointThresholdMax = new Vector3(x, y, z);
                 });
                 // var preTranslateSliderXCoarse = GameObject.Find($"PreTranslateXCoarse{i}")
                 //     .GetComponent<Slider>();
@@ -160,6 +179,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var postTranslateSliderXFine = GameObject.Find($"PostTranslateXFine{i}")
                     .GetComponent<Slider>();
+                postTranslateSliderXCoarse.onValueChanged.RemoveAllListeners();
+                postTranslateSliderXCoarse.value = cam.PostTranslation.x;
                 postTranslateSliderXCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = postTranslateSliderXFine.value;
@@ -168,6 +189,8 @@ namespace Eidetic.Rs2
                     var z = cam.PostTranslation.z;
                     cam.PostTranslation = new Vector3(x, y, z);
                 });
+                postTranslateSliderXFine.onValueChanged.RemoveAllListeners();
+                postTranslateSliderXFine.value = 0;
                 postTranslateSliderXFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = postTranslateSliderXCoarse.value;
@@ -180,6 +203,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var postTranslateSliderYFine = GameObject.Find($"PostTranslateYFine{i}")
                     .GetComponent<Slider>();
+                postTranslateSliderYCoarse.onValueChanged.RemoveAllListeners();
+                postTranslateSliderYCoarse.value = cam.PostTranslation.y;
                 postTranslateSliderYCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = postTranslateSliderYFine.value;
@@ -188,6 +213,8 @@ namespace Eidetic.Rs2
                     var z = cam.PostTranslation.z;
                     cam.PostTranslation = new Vector3(x, y, z);
                 });
+                postTranslateSliderYFine.onValueChanged.RemoveAllListeners();
+                postTranslateSliderYFine.value = 0;
                 postTranslateSliderYFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = postTranslateSliderYCoarse.value;
@@ -200,6 +227,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var postTranslateSliderZFine = GameObject.Find($"PostTranslateZFine{i}")
                     .GetComponent<Slider>();
+                postTranslateSliderZCoarse.onValueChanged.RemoveAllListeners();
+                postTranslateSliderZCoarse.value = cam.PostTranslation.z;
                 postTranslateSliderZCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = postTranslateSliderZFine.value;
@@ -208,6 +237,8 @@ namespace Eidetic.Rs2
                     var z = coarseVal + fineVal;
                     cam.PostTranslation = new Vector3(x, y, z);
                 });
+                postTranslateSliderZFine.onValueChanged.RemoveAllListeners();
+                postTranslateSliderZFine.value = 0;
                 postTranslateSliderZFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = postTranslateSliderZCoarse.value;
@@ -221,6 +252,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var rotateSliderXFine = GameObject.Find($"RotateXFine{i}")
                     .GetComponent<Slider>();
+                rotateSliderXCoarse.onValueChanged.RemoveAllListeners();
+                rotateSliderXCoarse.value = cam.Rotation.x / 36f;
                 rotateSliderXCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = rotateSliderXFine.value;
@@ -229,6 +262,8 @@ namespace Eidetic.Rs2
                     var z = cam.Rotation.z;
                     cam.Rotation = new Vector3(x, y, z);
                 });
+                rotateSliderXFine.onValueChanged.RemoveAllListeners();
+                rotateSliderXFine.value = 0;
                 rotateSliderXFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = rotateSliderXCoarse.value;
@@ -241,6 +276,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var rotateSliderYFine = GameObject.Find($"RotateYFine{i}")
                     .GetComponent<Slider>();
+                rotateSliderYCoarse.onValueChanged.RemoveAllListeners();
+                rotateSliderYCoarse.value = cam.Rotation.y / 36f;
                 rotateSliderYCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = rotateSliderYFine.value;
@@ -249,6 +286,8 @@ namespace Eidetic.Rs2
                     var z = cam.Rotation.z;
                     cam.Rotation = new Vector3(x, y, z);
                 });
+                rotateSliderYFine.onValueChanged.RemoveAllListeners();
+                rotateSliderYFine.value = 0;
                 rotateSliderYFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = rotateSliderYCoarse.value;
@@ -261,6 +300,8 @@ namespace Eidetic.Rs2
                     .GetComponent<Slider>();
                 var rotateSliderZFine = GameObject.Find($"RotateZFine{i}")
                     .GetComponent<Slider>();
+                rotateSliderZCoarse.onValueChanged.RemoveAllListeners();
+                rotateSliderZCoarse.value = cam.Rotation.z / 36f;
                 rotateSliderZCoarse.onValueChanged.AddListener((coarseVal) =>
                 {
                     var fineVal = rotateSliderZFine.value;
@@ -269,6 +310,8 @@ namespace Eidetic.Rs2
                     var z = (coarseVal * 36) + (fineVal * 1);
                     cam.Rotation = new Vector3(x, y, z);
                 });
+                rotateSliderZFine.onValueChanged.RemoveAllListeners();
+                rotateSliderZFine.value = 0;
                 rotateSliderZFine.onValueChanged.AddListener((fineVal) =>
                 {
                     var coarseVal = rotateSliderZCoarse.value;
@@ -281,10 +324,12 @@ namespace Eidetic.Rs2
 
             var calibrationButton = GameObject.Find("CalibrateButton")
                 .GetComponent<Button>();
+            calibrationButton.onClick.RemoveAllListeners();
             calibrationButton.onClick.AddListener(() => RunCalibration());
 
             var pauseAllButton = GameObject.Find("PauseAllButton")
                 .GetComponent<Button>();
+            pauseAllButton.onClick.RemoveAllListeners();
             pauseAllButton.onClick.AddListener(() => {
                 for (int i = 0; i < CameraCount; i++)
                 {
@@ -295,6 +340,40 @@ namespace Eidetic.Rs2
                 var pauseAllLabel = pauseAllButton.GetComponentsInChildren<Text>().First();
                 pauseAllLabel.text = Cameras.First().Paused ? "Resume All Cameras" : "Pause All Cameras";
             });
+
+            var saveButton = GameObject.Find("SaveButton")
+                .GetComponent<Button>();
+            saveButton.onClick.RemoveAllListeners();
+            saveButton.onClick.AddListener(() => Serialize());
+            var loadButton = GameObject.Find("LoadButton")
+                .GetComponent<Button>();
+            loadButton.onClick.RemoveAllListeners();
+            loadButton.onClick.AddListener(() => Deserialize(CurrentConfigName));
+
+            var configName = GameObject.Find("ConfigName")
+                .GetComponent<InputField>();
+            configName.onEndEdit.RemoveAllListeners();
+            configName.onEndEdit.AddListener((name) => CurrentConfigName = name);
+            configName.text = CurrentConfigName;
+
+            FpsCounter = GameObject.Find("FPS").GetComponent<Text>();
+        }
+
+        Text FpsCounter;
+        int FrameCount = 0;
+        float Delta = 0;
+        float CounterUpdateRate = 4;
+
+        void LateUpdate()
+        {
+            FrameCount++;
+            Delta += Time.deltaTime;
+            if (Delta > 1.0f / CounterUpdateRate)
+            {
+                FpsCounter.text = $"FPS: {Mathf.RoundToInt(FrameCount / Delta)}";
+                FrameCount = 0;
+                Delta -= 1.0f / CounterUpdateRate;
+            }
 
         }
     }
