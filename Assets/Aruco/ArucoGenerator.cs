@@ -30,23 +30,24 @@ namespace Eidetic.Rs2
         public float CenterX, CenterY, FocalX, FocalY;
         public float[] Distortion = new float[] {0, 0, 0, 0, 0};
 
-        public bool Generate(int cameraIndex, out (Vector3 pos, Vector4 rot) pose)
+        public bool Generate(int cameraIndex, out (Vector3 pos, Quaternion rot) pose)
         {
             var cameraDriver = Rs2Server.Instance.Drivers
                 .Values.ElementAt(cameraIndex);
 
-            Image = ChangeFormat(cameraDriver.ColorTexture, TextureFormat.RGB24);
+            Image = cameraDriver.ColorTexture.AsFormat(TextureFormat.RGB24);
 
             int width = Image.width;
             int height = Image.height;
             ImageData = Image.GetPixels32();
 
-            var intrinsics = DepthConverter
-                .IntrinsicsToVector(cameraDriver.Intrinsics.color);
+            var rawIntrinsics = cameraDriver.Intrinsics.color;
+            var intrinsics = DepthConverter.IntrinsicsToVector(rawIntrinsics);
             FocalX = intrinsics[2];
             FocalY = intrinsics[3];
             CenterX = intrinsics[0];
             CenterY = intrinsics[1];
+            Distortion = rawIntrinsics.coeffs;
 
             float[] cameraParams = new float[4 + 5];
             cameraParams[0] = FocalX;
@@ -68,7 +69,7 @@ namespace Eidetic.Rs2
             {
                 if (sleepTime > 5000)
                 {
-                    pose = (Vector3.zero, Vector4.zero);
+                    pose = (Vector3.zero, Vector4.zero.AsQuaternion());
                     return false;
                 }
                 System.Threading.Thread.Sleep(500);
@@ -90,31 +91,13 @@ namespace Eidetic.Rs2
 
             if (poseDict.Values.Count() == 0)
             {
-                pose = (Vector3.zero, Vector4.zero);
+                pose = (Vector3.zero, Vector4.zero.AsQuaternion());
                 return false;
             }
 
-            var poseValues = poseDict.Values.First();
-            var quatAsVec4 = new Vector4(poseValues.rot.x, poseValues.rot.y,
-                                         poseValues.rot.z, poseValues.rot.w);
-            pose = (poseValues.pos, quatAsVec4);
+            var poseValue = poseDict.Values.First();
+            pose = (poseValue.pos, poseValue.rot);
             return true;
-        }
-
-        static Texture2D ChangeFormat(Texture2D source, TextureFormat newFormat)
-        {
-            RenderTexture renderTex = RenderTexture.GetTemporary(
-                source.width, source.height, 0, RenderTextureFormat.Default,
-                RenderTextureReadWrite.Linear);
-            Graphics.Blit(source, renderTex);
-            RenderTexture previous = RenderTexture.active;
-            RenderTexture.active = renderTex;
-            Texture2D readableText = new Texture2D(source.width, source.height, newFormat, false);
-            readableText.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
-            readableText.Apply();
-            RenderTexture.active = previous;
-            RenderTexture.ReleaseTemporary(renderTex);
-            return readableText;
         }
     }
 }

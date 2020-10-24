@@ -11,7 +11,10 @@ StructuredBuffer<float> RemapBuffer0;
 float Brightness0;
 float Saturation0;
 float4 Rotation0;
-float3 Translation0;
+float3 PreTranslation0;
+float3 PostTranslation0;
+float4 CalibrationRotation0;
+float3 CalibrationTranslation0;
 
 uint BufferSize1;
 uint2 MapDimensions1;
@@ -21,7 +24,10 @@ StructuredBuffer<float> RemapBuffer1;
 float Brightness1;
 float Saturation1;
 float4 Rotation1;
-float3 Translation1;
+float3 PreTranslation1;
+float3 PostTranslation1;
+float4 CalibrationRotation1;
+float3 CalibrationTranslation1;
 
 uint BufferSize2;
 uint2 MapDimensions2;
@@ -31,7 +37,10 @@ StructuredBuffer<float> RemapBuffer2;
 float Brightness2;
 float Saturation2;
 float4 Rotation2;
-float3 Translation2;
+float3 PreTranslation2;
+float3 PostTranslation2;
+float4 CalibrationRotation2;
+float3 CalibrationTranslation2;
 
 uint BufferSize3;
 uint2 MapDimensions3;
@@ -41,7 +50,10 @@ StructuredBuffer<float> RemapBuffer3;
 float Brightness3;
 float Saturation3;
 float4 Rotation3;
-float3 Translation3;
+float3 PreTranslation3;
+float3 PostTranslation3;
+float4 CalibrationRotation3;
+float3 CalibrationTranslation3;
 
 RWStructuredBuffer<float3> Colors;
 RWStructuredBuffer<float3> Positions;
@@ -59,7 +71,9 @@ void Transfer(uint id : SV_DispatchThreadID)
     uint rawColor;
     float2 colorAdjust;
     float4 rotation;
-    float3 translation;
+    float3 preTranslation, postTranslation;
+    float4 calibrationRotation;
+    float3 calibrationTranslation;
 
     if (id < BufferSize0)
     {
@@ -69,7 +83,10 @@ void Transfer(uint id : SV_DispatchThreadID)
             PositionBuffer0[id * 3 + 2]
         );
         rotation = Rotation0;
-        translation = Translation0;
+        preTranslation = PreTranslation0;
+        postTranslation = PostTranslation0;
+        calibrationRotation = CalibrationRotation0;
+        calibrationTranslation = CalibrationTranslation0;
         float2 uv = float2(RemapBuffer0[id * 2], RemapBuffer0[id * 2 + 1]);
         uint2 idc = uv * MapDimensions0;
         rawColor = ColorBuffer0[idc.x + idc.y * MapDimensions0.x];
@@ -84,7 +101,10 @@ void Transfer(uint id : SV_DispatchThreadID)
             PositionBuffer1[id1 * 3 + 2]
         );
         rotation = Rotation1;
-        translation = Translation1;
+        preTranslation = PreTranslation1;
+        postTranslation = PostTranslation1;
+        calibrationRotation = CalibrationRotation1;
+        calibrationTranslation = CalibrationTranslation1;
         float2 uv = float2(RemapBuffer1[id1 * 2], RemapBuffer1[id1 * 2 + 1]);
         uint2 id1c = uv * MapDimensions1;
         rawColor = ColorBuffer1[id1c.x + id1c.y * MapDimensions1.x];
@@ -99,7 +119,10 @@ void Transfer(uint id : SV_DispatchThreadID)
             PositionBuffer2[id2 * 3 + 2]
         );
         rotation = Rotation2;
-        translation = Translation2;
+        preTranslation = PreTranslation2;
+        postTranslation = PostTranslation2;
+        calibrationRotation = CalibrationRotation2;
+        calibrationTranslation = CalibrationTranslation2;
         float2 uv = float2(RemapBuffer2[id2 * 2], RemapBuffer2[id2 * 2 + 1]);
         uint2 id2c = uv * MapDimensions2;
         rawColor = ColorBuffer2[id2c.x + id2c.y * MapDimensions2.x];
@@ -114,7 +137,10 @@ void Transfer(uint id : SV_DispatchThreadID)
             PositionBuffer3[id3 * 3 + 2]
         );
         rotation = Rotation3;
-        translation = Translation3;
+        preTranslation = PreTranslation3;
+        postTranslation = PostTranslation3;
+        calibrationRotation = CalibrationRotation3;
+        calibrationTranslation = CalibrationTranslation3;
         float2 uv = float2(RemapBuffer3[id3 * 2], RemapBuffer3[id3 * 2 + 1]);
         uint2 id3c = uv * MapDimensions3;
         rawColor = ColorBuffer3[id3c.x + id3c.y * MapDimensions3.x];
@@ -124,14 +150,21 @@ void Transfer(uint id : SV_DispatchThreadID)
     {
         pos = float3(0, 0, 0);
         rotation = float4(0, 0, 0, 0);
-        translation = float3(0, 0, 0);
+        preTranslation = float3(0, 0, 0);
+        postTranslation = float3(0, 0, 0);
         rawColor = 0x00000000;
     }
 
     // TODO this is happening in the wrong order or something
     // transform points
+    pos = pos - calibrationTranslation;
+    pos = pos + 2.0 * cross(cross(pos, calibrationRotation.xyz) + calibrationRotation.w * pos, calibrationRotation.xyz);
+    pos = pos + calibrationTranslation;
+
+
+    pos = pos + preTranslation;
     pos = pos + 2.0 * cross(cross(pos, rotation.xyz) + rotation.w * pos, rotation.xyz);
-    pos = pos + translation;
+    pos = pos + postTranslation;
 
     // discard points outside of the ABBox cutoff area
     uint insideX = step(CutoffMin.x, pos.x) * step(pos.x, CutoffMax.x);

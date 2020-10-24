@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Rendering;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -12,7 +13,7 @@ using static Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility;
 
 namespace Eidetic.Rs2
 {
-    public class Rs2Server : MonoBehaviour
+    public partial class Rs2Server : MonoBehaviour
     {
         const int CameraCount = 4;
         const int DepthWidth = 640;
@@ -26,23 +27,26 @@ namespace Eidetic.Rs2
         public class DeviceOptions
         {
             public bool Active = true;
+            public bool Paused = false;
             [Range(0f, 1f)]
             public float Brightness = 0f;
             [Range(0f, 10f)]
             public float Saturation = 1f;
-            // Rotation in quaternions
-            public Vector4 Rotation = Vector4.zero;
+            // Calibration rotation in quaternions
+            public Vector4 CalibrationRotation = Vector4.zero;
+            // Manual rotation in euler angles
+            public Vector3 Rotation = Vector3.zero;
             // Translation in metres
-            public Vector3 Translation = Vector3.zero;
+            public Vector3 CalibrationTranslation = Vector3.zero;
+            public Vector3 PreTranslation = Vector3.zero;
+            public Vector3 PostTranslation = Vector3.zero;
         }
         public List<DeviceOptions> Cameras;
 
-        public Vector3 CutoffMin = new Vector3(-5, -5, 0);
-        public Vector3 CutoffMax = new Vector3(5, 5, 10);
+        public Vector3 CutoffMin = new Vector3(-10, -10, -10);
+        public Vector3 CutoffMax = new Vector3(10, 10, 10);
 
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
-
-        public bool Calibrate = false;
 
         Context Rs2Context;
 
@@ -60,6 +64,7 @@ namespace Eidetic.Rs2
 
         void Awake()
         {
+            // return;
             Instance = this;
             DeviceContext = DeviceContext.Create();
             GLContext = DeviceContext.CreateContext(IntPtr.Zero);
@@ -113,38 +118,38 @@ namespace Eidetic.Rs2
             VertexSender.CreateSender("Rs2Vertices", StreamWidth, StreamHeight, 0);
             ColorSender = new SpoutSender();
             ColorSender.CreateSender("Rs2Colors", StreamWidth, StreamHeight, 0);
+
+            InitialiseUI();
         }
 
         void Update()
         {
-            if (Calibrate)
-            {
-                RunCalibration();
-                Calibrate = false;
-            }
-
             if (Cameras.All(cam => !cam.Active))
                 return;
 
             for(int i = 0; i < Drivers.Count(); i++)
-                if (Cameras[i].Active) Drivers.Values.ElementAt(i).UpdateFrames();
+                if (Cameras[i].Active && !Cameras[i].Paused) Drivers.Values.ElementAt(i).UpdateFrames();
 
             if (DeviceContext == null) return;
             SendPointCloudMaps();
         }
+
+        public Vector3 rotOffset0;
 
         void RunCalibration()
         {
             for(int i = 0; i < Drivers.Count(); i++)
             {
                 var borderImage = GameObject.Find($"FrameBorder{i}")
-                    .GetComponent<UnityEngine.UI.RawImage>();
-                (Vector3 pos, Vector4 rot) pose;
-                if (ArucoGenerator.Instance.Generate(i, out pose))
+                    .GetComponent<RawImage>();
+                if (ArucoGenerator.Instance.Generate(i, out var pose))
                 {
-                    Debug.Log("Successfully calibrated " + i);
-                    Cameras[i].Translation = pose.pos;
-                    Cameras[i].Rotation = pose.rot;
+                    Cameras[i].CalibrationTranslation = pose.pos;
+                    var euler = pose.rot.eulerAngles;
+                    euler = new Vector3(euler.x, euler.y, euler.z);
+                    var quat = Quaternion.Euler(euler);
+                    // quat = Quaternion.Inverse(quat);
+                    Cameras[i].CalibrationRotation = quat.AsVector();
                     borderImage.color = Color.green;
                 }
                 else borderImage.color = Color.red;
@@ -175,15 +180,21 @@ namespace Eidetic.Rs2
                 var remapBuffer = !dummy ? converter.RemapBuffer : new ComputeBuffer(1, sizeof(float));
                 var brightness = !dummy ? Cameras[i].Brightness : 0;
                 var saturation = !dummy ? Cameras[i].Saturation : 1;
-                var rotation = !dummy ? Cameras[i].Rotation : Vector4.zero;
-                var translation = !dummy ? Cameras[i].Translation : Vector3.zero;
+                var rotation = !dummy ? Cameras[i].Rotation : Vector3.zero;
+                var preTranslation = !dummy ? Cameras[i].PreTranslation : Vector3.zero;
+                var postTranslation = !dummy ? Cameras[i].PostTranslation : Vector3.zero;
+                var calibrationRotation = !dummy ? Cameras[i].CalibrationRotation : Vector4.zero;
+                var calibrationTranslation = !dummy ? Cameras[i].CalibrationTranslation : Vector3.zero;
 
                 TransferShader.SetInt($"BufferSize{i}", (i + 1) * CamPoints);
                 TransferShader.SetInts($"MapDimensions{i}", dimensions);
                 TransferShader.SetFloat($"Brightness{i}", brightness);
                 TransferShader.SetFloat($"Saturation{i}", saturation);
-                TransferShader.SetVector($"Rotation{i}", rotation);
-                TransferShader.SetVector($"Translation{i}", translation);
+                TransferShader.SetVector($"Rotation{i}", Quaternion.Euler(rotation).AsVector());
+                TransferShader.SetVector($"PreTranslation{i}", preTranslation);
+                TransferShader.SetVector($"PostTranslation{i}", postTranslation);
+                TransferShader.SetVector($"CalibrationRotation{i}", calibrationRotation);
+                TransferShader.SetVector($"CalibrationTranslation{i}", calibrationTranslation);
                 TransferShader.SetBuffer(0, $"ColorBuffer{i}", colorBuffer);
                 TransferShader.SetBuffer(0, $"PositionBuffer{i}", positionBuffer);
                 TransferShader.SetBuffer(0, $"RemapBuffer{i}", remapBuffer);
