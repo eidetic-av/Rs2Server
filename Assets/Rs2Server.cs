@@ -40,11 +40,12 @@ namespace Eidetic.Rs2
             public Vector3 CalibrationTranslation = Vector3.zero;
             public Vector3 PreTranslation = Vector3.zero;
             public Vector3 PostTranslation = Vector3.zero;
+            public (Vector3 Min, Vector3 Max) PointThreshold = (Vector3.one * -10, Vector3.one * 10);
         }
         public List<DeviceOptions> Cameras;
 
-        public Vector3 CutoffMin = new Vector3(-10, -10, -10);
-        public Vector3 CutoffMax = new Vector3(10, 10, 10);
+        public Vector3 ABBoxMin = new Vector3(-10, -10, -10);
+        public Vector3 ABBoxMax = new Vector3(10, 10, 10);
 
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
 
@@ -180,6 +181,8 @@ namespace Eidetic.Rs2
                 var postTranslation = !dummy ? Cameras[i].PostTranslation : Vector3.zero;
                 var calibrationRotation = !dummy ? Cameras[i].CalibrationRotation : Vector4.zero;
                 var calibrationTranslation = !dummy ? Cameras[i].CalibrationTranslation : Vector3.zero;
+                var pointThresholdMin = !dummy ? Cameras[i].PointThreshold.Min : Vector3.one * -10;
+                var pointThresholdMax = !dummy ? Cameras[i].PointThreshold.Max : Vector3.one * 10;
 
                 TransferShader.SetInt($"BufferSize{i}", (i + 1) * CamPoints);
                 TransferShader.SetInts($"MapDimensions{i}", dimensions);
@@ -188,6 +191,8 @@ namespace Eidetic.Rs2
                 TransferShader.SetVector($"Rotation{i}", Quaternion.Euler(rotation).AsVector());
                 TransferShader.SetVector($"PreTranslation{i}", preTranslation);
                 TransferShader.SetVector($"PostTranslation{i}", postTranslation);
+                TransferShader.SetVector($"PointThresholdMin{i}", pointThresholdMin);
+                TransferShader.SetVector($"PointThresholdMax{i}", pointThresholdMax);
                 TransferShader.SetVector($"CalibrationRotation{i}", calibrationRotation);
                 TransferShader.SetVector($"CalibrationTranslation{i}", calibrationTranslation);
                 TransferShader.SetBuffer(0, $"ColorBuffer{i}", colorBuffer);
@@ -196,8 +201,8 @@ namespace Eidetic.Rs2
             }
 
             TransferShader.SetInt("MaxPoints", MaxPoints);
-            TransferShader.SetVector("CutoffMin", CutoffMin);
-            TransferShader.SetVector("CutoffMax", CutoffMax);
+            TransferShader.SetVector("ABBoxMin", ABBoxMin);
+            TransferShader.SetVector("ABBoxMax", ABBoxMax);
 
             var gpuOutput = new ComputeBuffer(MaxPoints * 2, sizeof(float) * 3);
             TransferShader.SetBuffer(0, "OutputBuffer", gpuOutput);

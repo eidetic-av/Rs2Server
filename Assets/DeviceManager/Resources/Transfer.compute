@@ -1,8 +1,8 @@
 #pragma kernel Transfer
 
 int MaxPoints;
-float3 CutoffMin;
-float3 CutoffMax;
+float3 ABBoxMin;
+float3 ABBoxMax;
 
 uint BufferSize0;
 uint2 MapDimensions0;
@@ -16,6 +16,8 @@ float3 PreTranslation0;
 float3 PostTranslation0;
 float4 CalibrationRotation0;
 float3 CalibrationTranslation0;
+float3 PointThresholdMin0;
+float3 PointThresholdMax0;
 
 uint BufferSize1;
 uint2 MapDimensions1;
@@ -29,6 +31,8 @@ float3 PreTranslation1;
 float3 PostTranslation1;
 float4 CalibrationRotation1;
 float3 CalibrationTranslation1;
+float3 PointThresholdMin1;
+float3 PointThresholdMax1;
 
 uint BufferSize2;
 uint2 MapDimensions2;
@@ -42,6 +46,8 @@ float3 PreTranslation2;
 float3 PostTranslation2;
 float4 CalibrationRotation2;
 float3 CalibrationTranslation2;
+float3 PointThresholdMin2;
+float3 PointThresholdMax2;
 
 uint BufferSize3;
 uint2 MapDimensions3;
@@ -55,6 +61,8 @@ float3 PreTranslation3;
 float3 PostTranslation3;
 float4 CalibrationRotation3;
 float3 CalibrationTranslation3;
+float3 PointThresholdMin3;
+float3 PointThresholdMax3;
 
 RWStructuredBuffer<float3> OutputBuffer;
 
@@ -72,6 +80,7 @@ void Transfer(uint id : SV_DispatchThreadID)
     float2 colorAdjust;
     float4 rotation;
     float3 preTranslation, postTranslation;
+    float3 pointThresholdMin, pointThresholdMax;
     float4 calibrationRotation;
     float3 calibrationTranslation;
 
@@ -85,6 +94,8 @@ void Transfer(uint id : SV_DispatchThreadID)
         rotation = Rotation0;
         preTranslation = PreTranslation0;
         postTranslation = PostTranslation0;
+        pointThresholdMin = PointThresholdMin0;
+        pointThresholdMax = PointThresholdMax0;
         calibrationRotation = CalibrationRotation0;
         calibrationTranslation = CalibrationTranslation0;
         float2 uv = float2(RemapBuffer0[id * 2], RemapBuffer0[id * 2 + 1]);
@@ -103,6 +114,8 @@ void Transfer(uint id : SV_DispatchThreadID)
         rotation = Rotation1;
         preTranslation = PreTranslation1;
         postTranslation = PostTranslation1;
+        pointThresholdMin = PointThresholdMin1;
+        pointThresholdMax = PointThresholdMax1;
         calibrationRotation = CalibrationRotation1;
         calibrationTranslation = CalibrationTranslation1;
         float2 uv = float2(RemapBuffer1[id1 * 2], RemapBuffer1[id1 * 2 + 1]);
@@ -121,6 +134,8 @@ void Transfer(uint id : SV_DispatchThreadID)
         rotation = Rotation2;
         preTranslation = PreTranslation2;
         postTranslation = PostTranslation2;
+        pointThresholdMin = PointThresholdMin2;
+        pointThresholdMax = PointThresholdMax2;
         calibrationRotation = CalibrationRotation2;
         calibrationTranslation = CalibrationTranslation2;
         float2 uv = float2(RemapBuffer2[id2 * 2], RemapBuffer2[id2 * 2 + 1]);
@@ -139,6 +154,8 @@ void Transfer(uint id : SV_DispatchThreadID)
         rotation = Rotation3;
         preTranslation = PreTranslation3;
         postTranslation = PostTranslation3;
+        pointThresholdMin = PointThresholdMin3;
+        pointThresholdMax = PointThresholdMax3;
         calibrationRotation = CalibrationRotation3;
         calibrationTranslation = CalibrationTranslation3;
         float2 uv = float2(RemapBuffer3[id3 * 2], RemapBuffer3[id3 * 2 + 1]);
@@ -161,19 +178,27 @@ void Transfer(uint id : SV_DispatchThreadID)
     pos = pos + 2.0 * cross(cross(pos, calibrationRotation.xyz) + calibrationRotation.w * pos, calibrationRotation.xyz);
     pos = pos + calibrationTranslation;
 
+    // discard points out of individual camera thresholds
+    uint insideX = step(pointThresholdMin.x, pos.x) * step(pos.x, pointThresholdMax.x);
+    uint insideY = step(pointThresholdMin.y, pos.y) * step(pos.y, pointThresholdMax.y);
+    uint insideZ = step(pointThresholdMin.z, pos.z) * step(pos.z, pointThresholdMax.z);
+    uint insideThreshold = insideX * insideY * insideZ;
+
+    pos = pos * insideThreshold;
+    rawColor = rawColor * insideThreshold;
 
     pos = pos + preTranslation;
     pos = pos + 2.0 * cross(cross(pos, rotation.xyz) + rotation.w * pos, rotation.xyz);
     pos = pos + postTranslation;
 
     // discard points outside of the ABBox cutoff area
-    uint insideX = step(CutoffMin.x, pos.x) * step(pos.x, CutoffMax.x);
-    uint insideY = step(CutoffMin.y, pos.y) * step(pos.y, CutoffMax.y);
-    uint insideZ = step(CutoffMin.z, pos.z) * step(pos.z, CutoffMax.z);
-    uint insideBox = insideX * insideY * insideZ;
+    uint inABX = step(ABBoxMin.x, pos.x) * step(pos.x, ABBoxMax.x);
+    uint inABY = step(ABBoxMin.y, pos.y) * step(pos.y, ABBoxMax.y);
+    uint inABZ = step(ABBoxMin.z, pos.z) * step(pos.z, ABBoxMax.z);
+    uint inABBox = inABX * inABY * inABZ;
 
-    pos = pos * insideBox;
-    rawColor = rawColor * insideBox;
+    pos = pos * inABBox;
+    rawColor = rawColor * inABBox;
 
     // Color adjustment to correct color-space, and placement in a float3
     float3 color = (uint3(rawColor, rawColor >> 8, rawColor >> 16) & 0xffU) / 255.0;

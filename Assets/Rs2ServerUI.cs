@@ -41,66 +41,120 @@ namespace Eidetic.Rs2
                 saturationSlider.onValueChanged.AddListener((newVal) =>
                                                             cam.Saturation = newVal );
 
-                var preTranslateSliderXCoarse = GameObject.Find($"PreTranslateXCoarse{i}")
+                var pointThresholdSliderXMin = GameObject.Find($"PointThresholdXMin{i}")
                     .GetComponent<Slider>();
-                var preTranslateSliderXFine = GameObject.Find($"PreTranslateXFine{i}")
+                var pointThresholdSliderXMax = GameObject.Find($"PointThresholdXMax{i}")
                     .GetComponent<Slider>();
-                preTranslateSliderXCoarse.onValueChanged.AddListener((coarseVal) =>
+                pointThresholdSliderXMin.onValueChanged.AddListener((newVal) =>
                 {
-                    var fineVal = preTranslateSliderXFine.value;
-                    var x = coarseVal + fineVal;
-                    var y = cam.PreTranslation.y;
-                    var z = cam.PreTranslation.z;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = newVal;
+                    var y = cam.PointThreshold.Min.y;
+                    var z = cam.PointThreshold.Min.z;
+                    cam.PointThreshold.Min = new Vector3(x, y, z);
                 });
-                preTranslateSliderXFine.onValueChanged.AddListener((fineVal) =>
+                pointThresholdSliderXMax.onValueChanged.AddListener((newVal) =>
                 {
-                    var coarseVal = preTranslateSliderXCoarse.value;
-                    var x = coarseVal + fineVal;
-                    var y = cam.PreTranslation.y;
-                    var z = cam.PreTranslation.z;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = newVal;
+                    var y = cam.PointThreshold.Max.y;
+                    var z = cam.PointThreshold.Max.z;
+                    cam.PointThreshold.Max = new Vector3(x, y, z);
                 });
-                var preTranslateSliderYCoarse = GameObject.Find($"PreTranslateYCoarse{i}")
+                var pointThresholdSliderYMin = GameObject.Find($"PointThresholdYMin{i}")
                     .GetComponent<Slider>();
-                var preTranslateSliderYFine = GameObject.Find($"PreTranslateYFine{i}")
+                var pointThresholdSliderYMax = GameObject.Find($"PointThresholdYMax{i}")
                     .GetComponent<Slider>();
-                preTranslateSliderYCoarse.onValueChanged.AddListener((coarseVal) =>
+                pointThresholdSliderYMin.onValueChanged.AddListener((newVal) =>
                 {
-                    var fineVal = preTranslateSliderYFine.value;
-                    var x = cam.PreTranslation.x;
-                    var y = coarseVal + fineVal;
-                    var z = cam.PreTranslation.z;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = cam.PointThreshold.Min.x;
+                    var y = newVal;
+                    var z = cam.PointThreshold.Min.z;
+                    cam.PointThreshold.Min = new Vector3(x, y, z);
                 });
-                preTranslateSliderYFine.onValueChanged.AddListener((fineVal) =>
+                pointThresholdSliderYMax.onValueChanged.AddListener((newVal) =>
                 {
-                    var coarseVal = preTranslateSliderYCoarse.value;
-                    var x = cam.PreTranslation.x;
-                    var y = coarseVal + fineVal;
-                    var z = cam.PreTranslation.z;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = cam.PointThreshold.Max.x;
+                    var y = newVal;
+                    var z = cam.PointThreshold.Max.z;
+                    cam.PointThreshold.Max = new Vector3(x, y, z);
                 });
-                var preTranslateSliderZCoarse = GameObject.Find($"PreTranslateZCoarse{i}")
+                var pointThresholdSliderZMin = GameObject.Find($"PointThresholdZMin{i}")
                     .GetComponent<Slider>();
-                var preTranslateSliderZFine = GameObject.Find($"PreTranslateZFine{i}")
+                var pointThresholdSliderZMax = GameObject.Find($"PointThresholdZMax{i}")
                     .GetComponent<Slider>();
-                preTranslateSliderZCoarse.onValueChanged.AddListener((coarseVal) =>
+                pointThresholdSliderZMin.onValueChanged.AddListener((newVal) =>
                 {
-                    var fineVal = preTranslateSliderZFine.value;
-                    var x = cam.PreTranslation.x;
-                    var y = cam.PreTranslation.y;
-                    var z = coarseVal + fineVal;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = cam.PointThreshold.Min.x;
+                    var y = cam.PointThreshold.Min.y;
+                    var z = newVal;
+                    cam.PointThreshold.Min = new Vector3(x, y, z);
                 });
-                preTranslateSliderZFine.onValueChanged.AddListener((fineVal) =>
+                pointThresholdSliderZMax.onValueChanged.AddListener((newVal) =>
                 {
-                    var coarseVal = preTranslateSliderZCoarse.value;
-                    var x = cam.PreTranslation.x;
-                    var y = cam.PreTranslation.y;
-                    var z = coarseVal + fineVal;
-                    cam.PreTranslation = new Vector3(x, y, z);
+                    var x = cam.PointThreshold.Max.x;
+                    var y = cam.PointThreshold.Max.y;
+                    var z = newVal;
+                    cam.PointThreshold.Max = new Vector3(x, y, z);
                 });
+                // var preTranslateSliderXCoarse = GameObject.Find($"PreTranslateXCoarse{i}")
+                //     .GetComponent<Slider>();
+                // var preTranslateSliderXFine = GameObject.Find($"PreTranslateXFine{i}")
+                //     .GetComponent<Slider>();
+                // preTranslateSliderXCoarse.onValueChanged.AddListener((coarseVal) =>
+                // {
+                //     var fineVal = preTranslateSliderXFine.value;
+                //     var x = coarseVal + fineVal;
+                //     var y = cam.PreTranslation.y;
+                //     var z = cam.PreTranslation.z;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
+                // preTranslateSliderXFine.onValueChanged.AddListener((fineVal) =>
+                // {
+                //     var coarseVal = preTranslateSliderXCoarse.value;
+                //     var x = coarseVal + fineVal;
+                //     var y = cam.PreTranslation.y;
+                //     var z = cam.PreTranslation.z;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
+                // var preTranslateSliderYCoarse = GameObject.Find($"PreTranslateYCoarse{i}")
+                //     .GetComponent<Slider>();
+                // var preTranslateSliderYFine = GameObject.Find($"PreTranslateYFine{i}")
+                //     .GetComponent<Slider>();
+                // preTranslateSliderYCoarse.onValueChanged.AddListener((coarseVal) =>
+                // {
+                //     var fineVal = preTranslateSliderYFine.value;
+                //     var x = cam.PreTranslation.x;
+                //     var y = coarseVal + fineVal;
+                //     var z = cam.PreTranslation.z;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
+                // preTranslateSliderYFine.onValueChanged.AddListener((fineVal) =>
+                // {
+                //     var coarseVal = preTranslateSliderYCoarse.value;
+                //     var x = cam.PreTranslation.x;
+                //     var y = coarseVal + fineVal;
+                //     var z = cam.PreTranslation.z;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
+                // var preTranslateSliderZCoarse = GameObject.Find($"PreTranslateZCoarse{i}")
+                //     .GetComponent<Slider>();
+                // var preTranslateSliderZFine = GameObject.Find($"PreTranslateZFine{i}")
+                //     .GetComponent<Slider>();
+                // preTranslateSliderZCoarse.onValueChanged.AddListener((coarseVal) =>
+                // {
+                //     var fineVal = preTranslateSliderZFine.value;
+                //     var x = cam.PreTranslation.x;
+                //     var y = cam.PreTranslation.y;
+                //     var z = coarseVal + fineVal;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
+                // preTranslateSliderZFine.onValueChanged.AddListener((fineVal) =>
+                // {
+                //     var coarseVal = preTranslateSliderZCoarse.value;
+                //     var x = cam.PreTranslation.x;
+                //     var y = cam.PreTranslation.y;
+                //     var z = coarseVal + fineVal;
+                //     cam.PreTranslation = new Vector3(x, y, z);
+                // });
 
                 var postTranslateSliderXCoarse = GameObject.Find($"PostTranslateXCoarse{i}")
                     .GetComponent<Slider>();
