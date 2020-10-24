@@ -21,7 +21,7 @@ namespace Eidetic.Rs2
         const int CamPoints = DepthWidth * DepthHeight;
         const int MaxPoints = CamPoints * CameraCount;
         const int StreamWidth = DepthWidth * 3;
-        const int StreamHeight = DepthHeight * CameraCount;
+        const int StreamHeight = DepthHeight * CameraCount * 2;
 
         [Serializable]
         public class DeviceOptions
@@ -52,10 +52,8 @@ namespace Eidetic.Rs2
 
         ComputeShader TransferShader;
 
-        NativeArray<float3> ColorsSpoutBuffer;
-        NativeArray<float3> PositionsSpoutBuffer;
-        SpoutSender ColorSender;
-        SpoutSender VertexSender;
+        NativeArray<float3> SpoutBuffer;
+        SpoutSender SpoutSender;
 
         DeviceContext DeviceContext;
         IntPtr GLContext = IntPtr.Zero;
@@ -111,13 +109,10 @@ namespace Eidetic.Rs2
             }
 
             TransferShader = Resources.Load("Transfer") as ComputeShader;
-            PositionsSpoutBuffer = new NativeArray<float3>(5000000, Allocator.Persistent);
-            ColorsSpoutBuffer = new NativeArray<float3>(5000000, Allocator.Persistent);
+            SpoutBuffer = new NativeArray<float3>(10000000, Allocator.Persistent);
 
-            VertexSender = new SpoutSender();
-            VertexSender.CreateSender("Rs2Vertices", StreamWidth, StreamHeight, 0);
-            ColorSender = new SpoutSender();
-            ColorSender.CreateSender("Rs2Colors", StreamWidth, StreamHeight, 0);
+            SpoutSender = new SpoutSender();
+            SpoutSender.CreateSender("Rs2", StreamWidth, StreamHeight, 0);
 
             InitialiseUI();
         }
@@ -200,41 +195,32 @@ namespace Eidetic.Rs2
                 TransferShader.SetBuffer(0, $"RemapBuffer{i}", remapBuffer);
             }
 
-            var colorsGpuOutput = new ComputeBuffer(MaxPoints, sizeof(float) * 3);
-            var positionsGpuOutput = new ComputeBuffer(MaxPoints, sizeof(float) * 3);
-
+            TransferShader.SetInt("MaxPoints", MaxPoints);
             TransferShader.SetVector("CutoffMin", CutoffMin);
             TransferShader.SetVector("CutoffMax", CutoffMax);
-            TransferShader.SetBuffer(0, "Colors", colorsGpuOutput);
-            TransferShader.SetBuffer(0, "Positions", positionsGpuOutput);
+
+            var gpuOutput = new ComputeBuffer(MaxPoints * 2, sizeof(float) * 3);
+            TransferShader.SetBuffer(0, "OutputBuffer", gpuOutput);
 
             int gfxThreadWidth = MaxPoints / 64;
 
             TransferShader.Dispatch(0, gfxThreadWidth, 1, 1);
 
-            AsyncGPUReadback.RequestIntoNativeArray(ref ColorsSpoutBuffer, colorsGpuOutput, MaxPoints * sizeof(float) * 3, 0);
-            AsyncGPUReadback.RequestIntoNativeArray(ref PositionsSpoutBuffer, positionsGpuOutput, MaxPoints * sizeof(float) * 3, 0);
+            AsyncGPUReadback.RequestIntoNativeArray(ref SpoutBuffer, gpuOutput, MaxPoints * 2 * sizeof(float) * 3, 0);
             AsyncGPUReadback.WaitAllRequests();
 
-            var colorsPtr = (byte*) GetUnsafeBufferPointerWithoutChecks(ColorsSpoutBuffer);
-            var positionsPtr = (byte*) GetUnsafeBufferPointerWithoutChecks(PositionsSpoutBuffer);
+            var bufferPtr = (byte*) GetUnsafeBufferPointerWithoutChecks(SpoutBuffer);
 
-            // perhaps we can combine these textures into
-            ColorSender.SendImage(colorsPtr, StreamWidth, StreamHeight, Gl.RGBA, false, 0);
-            VertexSender.SendImage(positionsPtr, StreamWidth, StreamHeight, Gl.RGBA, false, 0);
+            SpoutSender.SendImage(bufferPtr, StreamWidth, StreamHeight, Gl.RGBA, false, 0);
 
-            colorsGpuOutput.Release();
-            positionsGpuOutput.Release();
+            gpuOutput.Release();
         }
 
         void OnDestroy()
         {
-            PositionsSpoutBuffer.Dispose();
-            ColorsSpoutBuffer.Dispose();
-            ColorSender.ReleaseSender(0);
-            ColorSender.Dispose();
-            VertexSender.ReleaseSender(0);
-            VertexSender.Dispose();
+            SpoutBuffer.Dispose();
+            SpoutSender.ReleaseSender(0);
+            SpoutSender.Dispose();
             DeviceContext?.DeleteContext(GLContext);
             DeviceContext?.Dispose();
             DeviceContext = null;
