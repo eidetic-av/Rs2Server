@@ -26458,6 +26458,9 @@ MonoBehaviour:
   Cameras: []
   ABBoxMin: {x: -10, y: -10, z: -10}
   ABBoxMax: {x: 10, y: 10, z: 10}
+  SendOverSpout: 0
+  SendOverNetwork: 0
+  Hostname: 192.168.10.2
 --- !u!4 &1048508603
 Transform:
   m_ObjectHideFlags: 0

@@ -4,6 +4,9 @@ using Spout.Interop;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
@@ -16,13 +19,14 @@ namespace Eidetic.Rs2
     [Serializable]
     public partial class Rs2Server : MonoBehaviour
     {
-        const int CameraCount = 4;
-        const int DepthWidth = 640;
-        const int DepthHeight = 480;
-        const int CamPoints = DepthWidth * DepthHeight;
-        const int MaxPoints = CamPoints * CameraCount;
-        const int StreamWidth = DepthWidth * 3;
-        const int StreamHeight = DepthHeight * CameraCount * 2;
+        public const int CameraCount = 4;
+        public const int DepthWidth = 640;
+        public const int DepthHeight = 480;
+        public const int CamPoints = DepthWidth * DepthHeight;
+        public const int MaxPoints = CamPoints * CameraCount;
+        public const int BufferSize = MaxPoints * sizeof(float) * 3 * 2;
+        public const int StreamWidth = DepthWidth * 3;
+        public const int StreamHeight = DepthHeight * CameraCount * 2;
 
         public static Rs2Server Instance;
 
@@ -32,24 +36,37 @@ namespace Eidetic.Rs2
         public Vector3 ABBoxMin = new Vector3(-10, -10, -10);
         public Vector3 ABBoxMax = new Vector3(10, 10, 10);
 
+        public bool SendOverSpout = false;
+        public bool SendOverNetwork = false;
+        public string Hostname = "127.0.0.1";
+
         [NonSerialized]
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
 
-        Context Rs2Context;
         ComputeShader TransferShader;
-        NativeArray<float3> SpoutBuffer;
+
+        Context Rs2Context;
         SpoutSender SpoutSender;
         DeviceContext DeviceContext;
         IntPtr GLContext = IntPtr.Zero;
+        byte[] SpoutBuffer;
+        bool GLContextInitialised = false;
 
-        void Awake()
+        TcpClient NetworkSender;
+        NetworkStream NetworkStream;
+        public const int NetworkPort = 9876;
+
+        void Awake() => Instance = this;
+
+        void InitialiseOpenGL()
         {
-            Instance = this;
-            // return;
             DeviceContext = DeviceContext.Create();
             GLContext = DeviceContext.CreateContext(IntPtr.Zero);
             DeviceContext.MakeCurrent(GLContext);
+            SpoutSender = new SpoutSender();
+            SpoutSender.CreateSender("Rs2", StreamWidth, StreamHeight, 0);
             Debug.Log("Initialised OpenGL Device.");
+            GLContextInitialised = true;
         }
 
         void Start()
@@ -91,10 +108,7 @@ namespace Eidetic.Rs2
             }
 
             TransferShader = Resources.Load("Transfer") as ComputeShader;
-            SpoutBuffer = new NativeArray<float3>(10000000, Allocator.Persistent);
-
-            SpoutSender = new SpoutSender();
-            SpoutSender.CreateSender("Rs2", StreamWidth, StreamHeight, 0);
+            SpoutBuffer = new byte[BufferSize];
 
             TryLoadLatestJson();
             InitialiseUI();
@@ -108,7 +122,6 @@ namespace Eidetic.Rs2
             for(int i = 0; i < Drivers.Count(); i++)
                 if (Cameras[i].Active && !Cameras[i].Paused) Drivers.Values.ElementAt(i).UpdateFrames();
 
-            if (DeviceContext == null) return;
             SendPointCloudMaps();
         }
 
@@ -191,21 +204,51 @@ namespace Eidetic.Rs2
 
             TransferShader.Dispatch(0, gfxThreadWidth, 1, 1);
 
-            AsyncGPUReadback.RequestIntoNativeArray(ref SpoutBuffer, gpuOutput, MaxPoints * 2 * sizeof(float) * 3, 0);
-            AsyncGPUReadback.WaitAllRequests();
+            gpuOutput.GetData(SpoutBuffer, 0, 0, BufferSize);
 
-            var bufferPtr = (byte*) GetUnsafeBufferPointerWithoutChecks(SpoutBuffer);
+            if (SendOverSpout)
+            {
+                if (!GLContextInitialised) InitialiseOpenGL();
+                fixed (byte* bufferPtr = SpoutBuffer)
+                {
+                    SpoutSender.SendImage(bufferPtr, StreamWidth, StreamHeight, Gl.RGBA, false, 0);
+                }
+            }
 
-            SpoutSender.SendImage(bufferPtr, StreamWidth, StreamHeight, Gl.RGBA, false, 0);
+            // Make this happen on another thread so we can compute GPU
+            // while we're sending last frames computed bytes at the same time
+            if (SendOverNetwork)
+            {
+                if (NetworkSender == null)
+                {
+                    NetworkSender = new TcpClient();
+                    NetworkSender.Connect(Hostname, NetworkPort);
+                    NetworkStream = NetworkSender.GetStream();
+                }
+                if (NetworkStream.CanWrite)
+                {
+                    // wait until client response before sending
+                    while (!NetworkStream.DataAvailable) {  }
+
+                    // and read the response out of the buffer
+                    var response = new byte[1];
+                    do NetworkStream.Read(response, 0, 1);
+                    while (NetworkStream.DataAvailable);
+
+                    // then send the pointcloud data
+                    NetworkStream.Write(SpoutBuffer, 0, BufferSize);
+                }
+            }
 
             gpuOutput.Release();
         }
 
         void OnDestroy()
         {
-            SpoutBuffer.Dispose();
-            SpoutSender.ReleaseSender(0);
-            SpoutSender.Dispose();
+            NetworkSender?.Dispose();
+            NetworkStream?.Dispose();
+            SpoutSender?.ReleaseSender(0);
+            SpoutSender?.Dispose();
             DeviceContext?.DeleteContext(GLContext);
             DeviceContext?.Dispose();
             DeviceContext = null;
