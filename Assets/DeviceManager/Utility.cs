@@ -82,5 +82,14 @@ namespace Eidetic.Rs2
 
         public static Quaternion AsQuaternion(this Vector4 vector) =>
             new Quaternion(vector.x, vector.y, vector.z, vector.w);
+
+        public static float Map(this float value, float minIn, float maxIn, float minOut, float maxOut) =>
+            ((value - minIn) / (maxIn - minIn)) * (maxOut - minOut) + minOut;
+
+        public static float Map(this float value, float minIn, float maxIn, float minOut, float maxOut, float exponent)
+        {
+            var raised = Mathf.Pow(value.Map(minIn, maxIn, minOut, maxOut), exponent);
+            return raised.Map(minOut, Mathf.Pow(maxOut, exponent), minOut, maxOut);
+        }
     }
 }

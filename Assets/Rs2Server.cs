@@ -101,6 +101,7 @@ namespace Eidetic.Rs2
                     driver.ColorResolution = (960, 540);
                     driver.DepthFramerate = 30;
                     driver.ColorFramerate = 30;
+
                 }
 
                 driver.ColorImage = GameObject.Find($"ColorTexture{Cameras.Count() - 1}")?
@@ -122,6 +123,7 @@ namespace Eidetic.Rs2
             for(int i = 0; i < Drivers.Count(); i++)
                 if (Cameras[i].Active && !Cameras[i].Paused) Drivers.Values.ElementAt(i).UpdateFrames();
 
+            UpdateCameraSettings();
             SendPointCloudMaps();
         }
 
@@ -133,11 +135,11 @@ namespace Eidetic.Rs2
                     .GetComponent<RawImage>();
                 if (ArucoGenerator.Instance.Generate(i, out var pose))
                 {
-                    Cameras[i].CalibrationTranslation = pose.pos;
+                    Cameras[i].CalibrationTranslation = -pose.pos;
                     var euler = pose.rot.eulerAngles;
                     euler = new Vector3(euler.x, euler.y, euler.z);
                     var quat = Quaternion.Euler(euler);
-                    // quat = Quaternion.Inverse(quat);
+                    quat = Quaternion.Inverse(quat);
                     Cameras[i].CalibrationRotation = quat.AsVector();
                     borderImage.color = Color.green;
                 }
@@ -167,8 +169,6 @@ namespace Eidetic.Rs2
                 var colorBuffer = !dummy ? converter.ColorBuffer : new ComputeBuffer(1, 4);
                 var positionBuffer = !dummy ? converter.PositionBuffer : new ComputeBuffer(1, sizeof(float));
                 var remapBuffer = !dummy ? converter.RemapBuffer : new ComputeBuffer(1, sizeof(float));
-                var brightness = !dummy ? Cameras[i].Brightness : 0;
-                var saturation = !dummy ? Cameras[i].Saturation : 1;
                 var rotation = !dummy ? Cameras[i].Rotation : Vector3.zero;
                 var preTranslation = !dummy ? Cameras[i].PreTranslation : Vector3.zero;
                 var postTranslation = !dummy ? Cameras[i].PostTranslation : Vector3.zero;
@@ -179,8 +179,6 @@ namespace Eidetic.Rs2
 
                 TransferShader.SetInt($"BufferSize{i}", (i + 1) * CamPoints);
                 TransferShader.SetInts($"MapDimensions{i}", dimensions);
-                TransferShader.SetFloat($"Brightness{i}", brightness);
-                TransferShader.SetFloat($"Saturation{i}", saturation);
                 TransferShader.SetVector($"Rotation{i}", Quaternion.Euler(rotation).AsVector());
                 TransferShader.SetVector($"PreTranslation{i}", preTranslation);
                 TransferShader.SetVector($"PostTranslation{i}", postTranslation);
@@ -243,6 +241,20 @@ namespace Eidetic.Rs2
             gpuOutput.Release();
         }
 
+        void UpdateCameraSettings()
+        {
+            for (int i = 0; i < Cameras.Count(); i++)
+            {
+                var deviceOptions = Cameras[i];
+                var driver = Drivers.Values.ElementAt(i);
+                driver.Exposure = deviceOptions.Exposure;
+                driver.Brightness = deviceOptions.Brightness;
+                driver.Saturation = deviceOptions.Saturation;
+                driver.Gain = deviceOptions.Gain;
+                driver.Contrast = deviceOptions.Contrast;
+            }
+        }
+
         void OnDestroy()
         {
             NetworkSender?.Dispose();
@@ -295,6 +307,12 @@ namespace Eidetic.Rs2
             public float Brightness = 0f;
             [Range(0f, 10f)]
             public float Saturation = 1f;
+            [Range(0f, 1f)]
+            public float Exposure = 0.5f;
+            [Range(0f, 1f)]
+            public float Gain = 0.5f;
+            [Range(0f, 1f)]
+            public float Contrast = 0.5f;
             // Calibration rotation in quaternions
             public Vector4 CalibrationRotation = Vector4.zero;
             // Manual rotation in euler angles

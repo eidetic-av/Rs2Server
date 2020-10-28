@@ -48,6 +48,27 @@ namespace Eidetic.Rs2
                 saturationSlider.onValueChanged.AddListener((newVal) =>
                                                             cam.Saturation = newVal );
 
+                var exposureSlider = GameObject.Find($"ExposureSlider{i}")
+                    .GetComponent<Slider>();
+                exposureSlider.onValueChanged.RemoveAllListeners();
+                exposureSlider.value = cam.Exposure;
+                exposureSlider.onValueChanged.AddListener((newVal) =>
+                                                            cam.Exposure = newVal );
+
+                var gainSlider = GameObject.Find($"GainSlider{i}")
+                    .GetComponent<Slider>();
+                gainSlider.onValueChanged.RemoveAllListeners();
+                gainSlider.value = cam.Gain;
+                gainSlider.onValueChanged.AddListener((newVal) =>
+                                                            cam.Gain = newVal );
+
+                var contrastSlider = GameObject.Find($"ContrastSlider{i}")
+                    .GetComponent<Slider>();
+                contrastSlider.onValueChanged.RemoveAllListeners();
+                contrastSlider.value = cam.Contrast;
+                contrastSlider.onValueChanged.AddListener((newVal) =>
+                                                            cam.Contrast = newVal );
+
                 var pointThresholdSliderXMin = GameObject.Find($"PointThresholdXMin{i}")
                     .GetComponent<Slider>();
                 var pointThresholdSliderXMax = GameObject.Find($"PointThresholdXMax{i}")

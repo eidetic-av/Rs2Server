@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Unity.Mathematics;
 using Intel.RealSense;
@@ -18,6 +19,12 @@ namespace Eidetic.Rs2
         public int DepthFramerate;
         public int ColorFramerate;
 
+        public float Exposure = 0.5f;
+        public float Brightness = 0.1f;
+        public float Saturation = 1f;
+        public float Gain = 0.5f;
+        public float Contrast = 0.5f;
+
         public readonly object FrameLock = new object();
 
         public DepthConverter Converter;
@@ -29,6 +36,8 @@ namespace Eidetic.Rs2
         double FrameTime;
 
         Pipeline Pipe;
+        Sensor DepthSensor;
+        Sensor ColorSensor;
         Thread ProcessThread;
         bool Terminate;
 
@@ -72,14 +81,47 @@ namespace Eidetic.Rs2
         void Start()
         {
             Pipe = new Pipeline();
+            PipelineProfile pipelineProfile;
             // Depth camera pipeline activation
             using (var config = new Config())
             {
                 config.EnableDevice(DeviceSerial);
-                config.EnableStream(Stream.Color, ColorResolution.width, ColorResolution.height, Format.Rgba8, ColorFramerate);
                 config.EnableStream(Stream.Depth, DepthResolution.width, DepthResolution.height, Format.Z16, DepthFramerate);
-                Pipe.Start(config);
+                config.EnableStream(Stream.Color, ColorResolution.width, ColorResolution.height, Format.Rgba8, ColorFramerate);
+                pipelineProfile = Pipe.Start(config);
             }
+
+            var device = pipelineProfile.Device;
+            DepthSensor = device.Sensors.Single(s => s.Is(Extension.DepthSensor));
+            ColorSensor = device.Sensors.Single(s => s.Is(Extension.ColorSensor));
+
+            // full laser power
+            if (DepthSensor.Options.Supports(Option.LaserPower))
+            {
+                var laserPower = DepthSensor.Options[Option.LaserPower];
+                laserPower.Value = laserPower.Max;
+            }
+            // Minimal confidence threshold to capture as many points as
+            // possible
+            if (DepthSensor.Options.Supports(Option.ConfidenceThreshold))
+                DepthSensor.Options[Option.ConfidenceThreshold].Value = 1f;
+            // Capture closest distance points
+            if (DepthSensor.Options.Supports(Option.MinDistance))
+                DepthSensor.Options[Option.MinDistance].Value = 0f;
+            // No sharpening of the depth image
+            if (DepthSensor.Options.Supports(Option.PostProcessingSharpening))
+                DepthSensor.Options[Option.PostProcessingSharpening].Value = 0f;
+            if (DepthSensor.Options.Supports(Option.PreProcessingSharpening))
+                DepthSensor.Options[Option.PreProcessingSharpening].Value = 0f;
+            // Minimal on-board noise filtering
+            if (DepthSensor.Options.Supports(Option.NoiseFilterLevel))
+                DepthSensor.Options[Option.NoiseFilterLevel].Value = 2f;
+            // Disable auto-exposure and leave this option to the UI
+            if (DepthSensor.Options.Supports(Option.EnableAutoExposure))
+                DepthSensor.Options[Option.EnableAutoExposure].Value = 0f;
+            // Disable auto-exposure and leave this option to the UI
+            if (ColorSensor.Options.Supports(Option.EnableAutoExposure))
+                ColorSensor.Options[Option.EnableAutoExposure].Value = 0f;
 
             // Worker thread activation
             ProcessThread = new Thread(ProcessFrames);
@@ -87,6 +129,60 @@ namespace Eidetic.Rs2
 
             // Local objects initialization
             Converter = new DepthConverter();
+        }
+
+        float exposureValue;
+        float brightnessValue;
+        float saturationValue;
+        float gainValue;
+        float contrastValue;
+        void LateUpdate()
+        {
+            if (Exposure != exposureValue)
+            {
+                if (ColorSensor.Options.Supports(Option.Exposure))
+                {
+                    var mappedExposure = Exposure.Map(0f, 1f, 1f, 2000f, 3f);
+                    ColorSensor.Options[Option.Exposure].Value = mappedExposure;
+                }
+                exposureValue = Exposure;
+            }
+            if (Brightness != brightnessValue)
+            {
+                if (ColorSensor.Options.Supports(Option.Brightness))
+                {
+                    var mappedBrightness = Brightness.Map(0f, 1f, -25f, 64f, 1f);
+                    ColorSensor.Options[Option.Brightness].Value = mappedBrightness;
+                }
+                brightnessValue = Brightness;
+            }
+            if (Saturation != saturationValue)
+            {
+                if (ColorSensor.Options.Supports(Option.Saturation))
+                {
+                    var mappedSaturation = Saturation.Map(0f, 10f, 0f, 100f, .85f);
+                    ColorSensor.Options[Option.Saturation].Value = mappedSaturation;
+                }
+                saturationValue = Saturation;
+            }
+            if (Gain != gainValue)
+            {
+                if (ColorSensor.Options.Supports(Option.Gain))
+                {
+                    var mappedGain = Gain.Map(0f, 1f, 0f, 128f, 1f);
+                    ColorSensor.Options[Option.Gain].Value = mappedGain;
+                }
+                gainValue = Gain;
+            }
+            if (Contrast != contrastValue)
+            {
+                if (ColorSensor.Options.Supports(Option.Contrast))
+                {
+                    var mappedContrast = Contrast.Map(0f, 1f, 0f, 100f, 1f);
+                    ColorSensor.Options[Option.Contrast].Value = mappedContrast;
+                }
+                contrastValue = Contrast;
+            }
         }
 
         void OnDestroy()
