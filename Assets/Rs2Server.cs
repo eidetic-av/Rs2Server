@@ -36,9 +36,12 @@ namespace Eidetic.Rs2
         public Vector3 ABBoxMin = new Vector3(-10, -10, -10);
         public Vector3 ABBoxMax = new Vector3(10, 10, 10);
 
-        public bool SendOverSpout = false;
-        public bool SendOverNetwork = false;
         public string Hostname = "127.0.0.1";
+        public bool SendOverNetwork = false;
+        public bool SendOverSpout = false;
+
+        public bool RunCustomHooks = true;
+        public Action<byte[]> CustomHooks;
 
         [NonSerialized]
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
@@ -101,7 +104,6 @@ namespace Eidetic.Rs2
                     driver.ColorResolution = (960, 540);
                     driver.DepthFramerate = 30;
                     driver.ColorFramerate = 30;
-
                 }
 
                 driver.ColorImage = GameObject.Find($"ColorTexture{Cameras.Count() - 1}")?
@@ -213,16 +215,8 @@ namespace Eidetic.Rs2
                 }
             }
 
-            // Make this happen on another thread so we can compute GPU
-            // while we're sending last frames computed bytes at the same time
             if (SendOverNetwork)
             {
-                if (NetworkSender == null)
-                {
-                    NetworkSender = new TcpClient();
-                    NetworkSender.Connect(Hostname, NetworkPort);
-                    NetworkStream = NetworkSender.GetStream();
-                }
                 if (NetworkStream.CanWrite)
                 {
                     // wait until client response before sending
@@ -237,6 +231,9 @@ namespace Eidetic.Rs2
                     NetworkStream.Write(SpoutBuffer, 0, BufferSize);
                 }
             }
+
+            if (RunCustomHooks)
+                CustomHooks?.Invoke(SpoutBuffer);
 
             gpuOutput.Release();
         }
@@ -257,8 +254,7 @@ namespace Eidetic.Rs2
 
         void OnDestroy()
         {
-            NetworkSender?.Dispose();
-            NetworkStream?.Dispose();
+            NetworkDisconnect();
             SpoutSender?.ReleaseSender(0);
             SpoutSender?.Dispose();
             DeviceContext?.DeleteContext(GLContext);
@@ -296,6 +292,25 @@ namespace Eidetic.Rs2
                 Debug.LogError("Failed loading from json; printing trace:");
                 Debug.LogError(e.StackTrace);
             }
+        }
+
+        void NetworkConnect()
+        {
+            if (NetworkSender == null)
+                NetworkSender = new TcpClient();
+            NetworkSender.Connect(Hostname, NetworkPort);
+            NetworkStream = NetworkSender.GetStream();
+            SendOverNetwork = true;
+        }
+
+        void NetworkDisconnect()
+        {
+            SendOverNetwork = false;
+            NetworkStream?.Close();
+            NetworkStream?.Dispose();
+            NetworkStream = null;
+            NetworkSender?.Close();
+            NetworkSender = null;
         }
 
         [Serializable]

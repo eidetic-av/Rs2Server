@@ -135,66 +135,6 @@ namespace Eidetic.Rs2
                     var z = newVal;
                     cam.PointThresholdMax = new Vector3(x, y, z);
                 });
-                // var preTranslateSliderXCoarse = GameObject.Find($"PreTranslateXCoarse{i}")
-                //     .GetComponent<Slider>();
-                // var preTranslateSliderXFine = GameObject.Find($"PreTranslateXFine{i}")
-                //     .GetComponent<Slider>();
-                // preTranslateSliderXCoarse.onValueChanged.AddListener((coarseVal) =>
-                // {
-                //     var fineVal = preTranslateSliderXFine.value;
-                //     var x = coarseVal + fineVal;
-                //     var y = cam.PreTranslation.y;
-                //     var z = cam.PreTranslation.z;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
-                // preTranslateSliderXFine.onValueChanged.AddListener((fineVal) =>
-                // {
-                //     var coarseVal = preTranslateSliderXCoarse.value;
-                //     var x = coarseVal + fineVal;
-                //     var y = cam.PreTranslation.y;
-                //     var z = cam.PreTranslation.z;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
-                // var preTranslateSliderYCoarse = GameObject.Find($"PreTranslateYCoarse{i}")
-                //     .GetComponent<Slider>();
-                // var preTranslateSliderYFine = GameObject.Find($"PreTranslateYFine{i}")
-                //     .GetComponent<Slider>();
-                // preTranslateSliderYCoarse.onValueChanged.AddListener((coarseVal) =>
-                // {
-                //     var fineVal = preTranslateSliderYFine.value;
-                //     var x = cam.PreTranslation.x;
-                //     var y = coarseVal + fineVal;
-                //     var z = cam.PreTranslation.z;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
-                // preTranslateSliderYFine.onValueChanged.AddListener((fineVal) =>
-                // {
-                //     var coarseVal = preTranslateSliderYCoarse.value;
-                //     var x = cam.PreTranslation.x;
-                //     var y = coarseVal + fineVal;
-                //     var z = cam.PreTranslation.z;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
-                // var preTranslateSliderZCoarse = GameObject.Find($"PreTranslateZCoarse{i}")
-                //     .GetComponent<Slider>();
-                // var preTranslateSliderZFine = GameObject.Find($"PreTranslateZFine{i}")
-                //     .GetComponent<Slider>();
-                // preTranslateSliderZCoarse.onValueChanged.AddListener((coarseVal) =>
-                // {
-                //     var fineVal = preTranslateSliderZFine.value;
-                //     var x = cam.PreTranslation.x;
-                //     var y = cam.PreTranslation.y;
-                //     var z = coarseVal + fineVal;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
-                // preTranslateSliderZFine.onValueChanged.AddListener((fineVal) =>
-                // {
-                //     var coarseVal = preTranslateSliderZCoarse.value;
-                //     var x = cam.PreTranslation.x;
-                //     var y = cam.PreTranslation.y;
-                //     var z = coarseVal + fineVal;
-                //     cam.PreTranslation = new Vector3(x, y, z);
-                // });
 
                 var postTranslateSliderXCoarse = GameObject.Find($"PostTranslateXCoarse{i}")
                     .GetComponent<Slider>();
@@ -376,6 +316,31 @@ namespace Eidetic.Rs2
             configName.onEndEdit.RemoveAllListeners();
             configName.onEndEdit.AddListener((name) => CurrentConfigName = name);
             configName.text = CurrentConfigName;
+
+            var spoutOutputToggle = GameObject.Find("SpoutOutputToggle")
+                .GetComponent<Toggle>();
+            spoutOutputToggle.onValueChanged.RemoveAllListeners();
+            spoutOutputToggle.onValueChanged.AddListener((toggleVal) => SendOverSpout = toggleVal);
+
+            var customHookToggle = GameObject.Find("CustomHookToggle")
+                .GetComponent<Toggle>();
+            customHookToggle.onValueChanged.RemoveAllListeners();
+            customHookToggle.onValueChanged.AddListener((toggleVal) => RunCustomHooks = toggleVal);
+
+            var networkHostnameInput = GameObject.Find("HostnameInput")
+                .GetComponent<InputField>();
+            networkHostnameInput.onEndEdit.RemoveAllListeners();
+            networkHostnameInput.onEndEdit.AddListener((hostname) => Hostname = hostname);
+
+            var networkConnectButton = GameObject.Find("ConnectButton")
+                .GetComponent<Button>();
+            networkConnectButton.onClick.RemoveAllListeners();
+            networkConnectButton.onClick.AddListener(() => NetworkConnect());
+
+            var networkDisconnectButton = GameObject.Find("DisconnectButton")
+                .GetComponent<Button>();
+            networkDisconnectButton.onClick.RemoveAllListeners();
+            networkDisconnectButton.onClick.AddListener(() => NetworkDisconnect());
 
             FpsCounter = GameObject.Find("FPS").GetComponent<Text>();
         }

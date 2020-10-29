@@ -18,10 +18,10 @@ namespace Eidetic.Rs2
         static IPEndPoint LocalEndPoint;
         static byte[] ReceivedData = new byte[Rs2Server.BufferSize];
         static bool SendFrame = false;
+        static bool UpdateLabel = false;
 
-        static bool Listening;
-        static bool UpdateLabel;
-        static bool SpoutFrame;
+        static bool ListeningForConnection;
+        static bool Connected = false;
 
         static SpoutSender SpoutSender;
         static DeviceContext DeviceContext;
@@ -29,12 +29,7 @@ namespace Eidetic.Rs2
 
         void Awake()
         {
-            Receiver = new TcpListener(Rs2Server.NetworkPort);
-            Receiver.Start();
-            var listenerThread = new Thread(Listen);
-            ReceivedData = new byte[Rs2Server.BufferSize];
-            Listening = true;
-            listenerThread.Start();
+            StartListeningForConnection();
 
             DeviceContext = DeviceContext.Create();
             GLContext = DeviceContext.CreateContext(IntPtr.Zero);
@@ -43,32 +38,55 @@ namespace Eidetic.Rs2
             SpoutSender.CreateSender("Rs2", Rs2Server.StreamWidth, Rs2Server.StreamHeight, 0);
         }
 
+        static void StartListeningForConnection()
+        {
+            Receiver = new TcpListener(Rs2Server.NetworkPort);
+            Receiver.Start();
+            ReceivedData = new byte[Rs2Server.BufferSize];
+            var listenerThread = new Thread(Listen);
+            ListeningForConnection = true;
+            listenerThread.Start();
+        }
+
         static void Listen()
         {
-            while (Listening)
+            while (ListeningForConnection)
             {
-                if (Sender == null)
-                {
-                    Sender = Receiver.AcceptTcpClient();
-                    NetworkStream = Sender.GetStream();
-                    UpdateLabel = true;
+                Sender = Receiver.AcceptTcpClient();
+                NetworkStream = Sender.GetStream();
 
-                    // Send a byte to start the transfer
-                    var response = new byte[] { Byte.MaxValue };
-                    NetworkStream.Write(response, 0, response.Length);
-                }
+                // Send a byte to start the transfer
+                var response = new byte[] { Byte.MaxValue };
+                NetworkStream.Write(response, 0, response.Length);
+
+                Connected = true;
+                ListeningForConnection = false;
+                UpdateLabel = true;
             }
         }
 
         unsafe void Update()
         {
             if (NetworkStream == null) return;
-            if (NetworkStream.CanRead)
+            if (NetworkStream.CanRead && Connected)
             {
                 // read all of the data out of the stream
-                do NetworkStream.Read(ReceivedData, 0, Rs2Server.BufferSize);
+                do
+                {
+                    try
+                    {
+                        NetworkStream.Read(ReceivedData, 0, Rs2Server.BufferSize);
+                    }
+                    catch (Exception e)
+                    {
+                        // if we can't read, assume socket disconnected
+                        Disconnect();
+                        return;
+                    }
+                }
                 while (NetworkStream.DataAvailable);
 
+                // send the data as a spout image
                 fixed (byte* bufferPtr = ReceivedData)
                 {
                     SpoutSender.SendImage(bufferPtr,
@@ -79,8 +97,31 @@ namespace Eidetic.Rs2
 
                 // send a single byte to acknowledge the server can send again
                 var response = new byte[] { Byte.MaxValue };
-                NetworkStream.Write(response, 0, response.Length);
+                try
+                {
+                    NetworkStream.Write(response, 0, response.Length);
+                }
+                catch (Exception e)
+                {
+                    Disconnect();
+                }
             }
+        }
+
+        void Disconnect(bool listenForNewConnection = true)
+        {
+            Connected = false;
+            UpdateLabel = true;
+            Receiver?.Stop();
+            Receiver = null;
+            Sender?.Close();
+            Sender = null;
+            NetworkStream?.Close();
+            NetworkStream?.Dispose();
+            NetworkStream = null;
+            ReceivedData = null;
+            if (listenForNewConnection)
+                StartListeningForConnection();
         }
 
         void LateUpdate()
@@ -89,14 +130,16 @@ namespace Eidetic.Rs2
             {
                 var connectedLabel = GameObject.Find("ConnectedLabel")
                     .GetComponent<UnityEngine.UI.Text>();
-                connectedLabel.text = "Connected";
+                connectedLabel.text = Connected ? "Connected" : "Not Connected";
+                connectedLabel.color = Connected ? Color.green : Color.red;
                 UpdateLabel = false;
             }
         }
 
         void OnDestroy()
         {
-            Listening = false;
+            ListeningForConnection = false;
+            Disconnect(false);
             SpoutSender?.ReleaseSender(0);
             SpoutSender?.Dispose();
             DeviceContext?.DeleteContext(GLContext);
