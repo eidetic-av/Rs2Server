@@ -41,6 +41,7 @@ namespace Eidetic.Rs2
                 brightnessSlider.value = cam.Brightness;
                 brightnessSlider.onValueChanged.AddListener((newVal) =>
                                                             cam.Brightness = newVal );
+
                 var saturationSlider = GameObject.Find($"SaturationSlider{i}")
                     .GetComponent<Slider>();
                 saturationSlider.onValueChanged.RemoveAllListeners();
@@ -287,6 +288,17 @@ namespace Eidetic.Rs2
                 .GetComponent<Button>();
             calibrationButton.onClick.RemoveAllListeners();
             calibrationButton.onClick.AddListener(() => RunCalibration());
+
+            var markerSizeDropdown = GameObject.Find("MarkerSizeDropdown")
+                .GetComponent<Dropdown>();
+            markerSizeDropdown.onValueChanged.RemoveAllListeners();
+            markerSizeDropdown.onValueChanged.AddListener((index) => {
+                var selection = markerSizeDropdown.options[index].text;
+                if (selection.Contains("A3"))
+                    ArucoSize = MarkerSize.A3;
+                else if (selection.Contains("A4"))
+                    ArucoSize = MarkerSize.A4;
+            });
 
             var pauseAllButton = GameObject.Find("PauseAllButton")
                 .GetComponent<Button>();

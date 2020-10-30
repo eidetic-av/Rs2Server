@@ -12,7 +12,7 @@ namespace Eidetic.Rs2
         public static ArucoGenerator Instance =>
             instance ?? (instance = GameObject.Find("Aruco").GetComponent<ArucoGenerator>());
 
-        public float markerSize;
+        public float MarkerSize;
         public Vector3 offset;
 
         //Changes in pos/rot below these thresholds are ignored
@@ -58,7 +58,7 @@ namespace Eidetic.Rs2
                 cameraParams[4 + i] = Distortion[i];
 
             if(width > 0 && height > 0)
-                ArucoTracking.init(width, height, markerSize, cameraParams, 1);
+                ArucoTracking.init(width, height, MarkerSize, cameraParams, 1);
 
             average = new PoseRunningAverage(avgFilterMemoryLength);
             poseDict = new Dictionary<int, PoseData>();

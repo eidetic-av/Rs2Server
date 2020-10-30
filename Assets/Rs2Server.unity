@@ -1866,6 +1866,21 @@ PrefabInstance:
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 1718660840}
+    - target: {fileID: 9087140395892299689, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
+        type: 3}
+      propertyPath: m_ReferenceResolution.y
+      value: 1146
+      objectReference: {fileID: 0}
+    - target: {fileID: 9087140395892299689, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
+        type: 3}
+      propertyPath: m_ReferenceResolution.x
+      value: 1305
+      objectReference: {fileID: 0}
+    - target: {fileID: 9087140395892299689, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
+        type: 3}
+      propertyPath: m_ScreenMatchMode
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 9087140395896977443, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
         type: 3}
       propertyPath: m_AnchorMax.x
@@ -2275,6 +2290,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9087140396469724945, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -500.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 9087140396469724945, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -544.6
       objectReference: {fileID: 0}
     - target: {fileID: 9087140396483856111, guid: 375fdebaa373dcd4c8d54ad49f94a0a9,
         type: 3}

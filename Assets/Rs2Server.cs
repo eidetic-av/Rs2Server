@@ -43,6 +43,8 @@ namespace Eidetic.Rs2
         public bool RunCustomHooks = true;
         public Action<byte[]> CustomHooks;
 
+        public MarkerSize ArucoSize = MarkerSize.A3;
+
         [NonSerialized]
         public Dictionary<string, CombinedDriver> Drivers = new Dictionary<string, CombinedDriver>();
 
@@ -135,6 +137,15 @@ namespace Eidetic.Rs2
             {
                 var borderImage = GameObject.Find($"FrameBorder{i}")
                     .GetComponent<RawImage>();
+                switch (ArucoSize)
+                {
+                    case MarkerSize.A4:
+                        ArucoGenerator.Instance.MarkerSize = 0.2f;
+                        break;
+                    case MarkerSize.A3:
+                        ArucoGenerator.Instance.MarkerSize = 0.287f;
+                        break;
+                }
                 if (ArucoGenerator.Instance.Generate(i, out var pose))
                 {
                     Cameras[i].CalibrationTranslation = -pose.pos;
@@ -156,7 +167,7 @@ namespace Eidetic.Rs2
                 // if the device doesn't exist, or it's not active
                 // send dummy (empty) values to the shader
                 bool dummy = false;
-                if (i >= Cameras.Count() || !Cameras[i].Active)
+                if (i >= Cameras.Count() || !Cameras[i].Active || i >= Drivers.Count())
                     dummy = true;
 
                 CombinedDriver driver = !dummy ? Drivers.ElementAt(i).Value : null;
@@ -243,6 +254,7 @@ namespace Eidetic.Rs2
             for (int i = 0; i < Cameras.Count(); i++)
             {
                 var deviceOptions = Cameras[i];
+                if (i >= Drivers.Count()) continue;
                 var driver = Drivers.Values.ElementAt(i);
                 driver.Exposure = deviceOptions.Exposure;
                 driver.Brightness = deviceOptions.Brightness;
@@ -339,5 +351,8 @@ namespace Eidetic.Rs2
             public Vector3 PointThresholdMin = Vector3.one * -10;
             public Vector3 PointThresholdMax = Vector3.one * 10;
         }
+
+        [Serializable]
+        public enum MarkerSize { A3, A4 }
     }
 }
