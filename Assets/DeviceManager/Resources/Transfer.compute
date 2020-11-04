@@ -9,6 +9,8 @@ uint2 MapDimensions0;
 StructuredBuffer<uint> ColorBuffer0;
 StructuredBuffer<float> PositionBuffer0;
 StructuredBuffer<float> RemapBuffer0;
+StructuredBuffer<uint> ConfidenceBuffer0;
+bool UseConfidenceBuffer0;
 float4 Rotation0;
 float3 PreTranslation0;
 float3 PostTranslation0;
@@ -22,6 +24,8 @@ uint2 MapDimensions1;
 StructuredBuffer<uint> ColorBuffer1;
 StructuredBuffer<float> PositionBuffer1;
 StructuredBuffer<float> RemapBuffer1;
+StructuredBuffer<uint> ConfidenceBuffer1;
+bool UseConfidenceBuffer1;
 float4 Rotation1;
 float3 PreTranslation1;
 float3 PostTranslation1;
@@ -35,6 +39,8 @@ uint2 MapDimensions2;
 StructuredBuffer<uint> ColorBuffer2;
 StructuredBuffer<float> PositionBuffer2;
 StructuredBuffer<float> RemapBuffer2;
+StructuredBuffer<uint> ConfidenceBuffer2;
+bool UseConfidenceBuffer2;
 float4 Rotation2;
 float3 PreTranslation2;
 float3 PostTranslation2;
@@ -48,6 +54,8 @@ uint2 MapDimensions3;
 StructuredBuffer<uint> ColorBuffer3;
 StructuredBuffer<float> PositionBuffer3;
 StructuredBuffer<float> RemapBuffer3;
+StructuredBuffer<uint> ConfidenceBuffer3;
+bool UseConfidenceBuffer3;
 float4 Rotation3;
 float3 PreTranslation3;
 float3 PostTranslation3;
@@ -92,6 +100,24 @@ void Transfer(uint id : SV_DispatchThreadID)
         float2 uv = float2(RemapBuffer0[id * 2], RemapBuffer0[id * 2 + 1]);
         uint2 idc = uv * MapDimensions0;
         rawColor = ColorBuffer0[idc.x + idc.y * MapDimensions0.x];
+        if (UseConfidenceBuffer0)
+        {
+            int confidenceIndex = id / 4;
+            int confidenceByte = id % 4;
+            uint sequence = ConfidenceBuffer0[confidenceIndex];
+            uint chars[4] =
+            {
+                sequence >> 24,
+                (sequence & 0x00ff0000) >> 16,
+                (sequence & 0x0000ff00) >> 8,
+                (sequence & 0x000000ff)
+            };
+            if (chars[confidenceByte] == 0x0)
+            {
+                rawColor = 0x00000000;
+                pos = float3(0, 0, 0);
+            }
+        }
     }
     else if (id < BufferSize1)
     {
@@ -111,6 +137,24 @@ void Transfer(uint id : SV_DispatchThreadID)
         float2 uv = float2(RemapBuffer1[id1 * 2], RemapBuffer1[id1 * 2 + 1]);
         uint2 id1c = uv * MapDimensions1;
         rawColor = ColorBuffer1[id1c.x + id1c.y * MapDimensions1.x];
+        if (UseConfidenceBuffer1)
+        {
+            int confidenceIndex = id / 4;
+            int confidenceByte = id % 4;
+            uint sequence = ConfidenceBuffer1[confidenceIndex];
+            uint chars[4] =
+            {
+                sequence >> 24,
+                (sequence & 0x00ff0000) >> 16,
+                (sequence & 0x0000ff00) >> 8,
+                (sequence & 0x000000ff)
+            };
+            if (chars[confidenceByte] == 0x0)
+            {
+                rawColor = 0x00000000;
+                pos = float3(0, 0, 0);
+            }
+        }
     }
     else if (id < BufferSize2)
     {
@@ -130,6 +174,24 @@ void Transfer(uint id : SV_DispatchThreadID)
         float2 uv = float2(RemapBuffer2[id2 * 2], RemapBuffer2[id2 * 2 + 1]);
         uint2 id2c = uv * MapDimensions2;
         rawColor = ColorBuffer2[id2c.x + id2c.y * MapDimensions2.x];
+        if (UseConfidenceBuffer2)
+        {
+            int confidenceIndex = id / 4;
+            int confidenceByte = id % 4;
+            uint sequence = ConfidenceBuffer2[confidenceIndex];
+            uint chars[4] =
+            {
+                sequence >> 24,
+                (sequence & 0x00ff0000) >> 16,
+                (sequence & 0x0000ff00) >> 8,
+                (sequence & 0x000000ff)
+            };
+            if (chars[confidenceByte] == 0x0)
+            {
+                rawColor = 0x00000000;
+                pos = float3(0, 0, 0);
+            }
+        }
     }
     else if (id < BufferSize3)
     {
@@ -149,6 +211,24 @@ void Transfer(uint id : SV_DispatchThreadID)
         float2 uv = float2(RemapBuffer3[id3 * 2], RemapBuffer3[id3 * 2 + 1]);
         uint2 id3c = uv * MapDimensions3;
         rawColor = ColorBuffer3[id3c.x + id3c.y * MapDimensions3.x];
+        if (UseConfidenceBuffer3)
+        {
+            int confidenceIndex = id / 4;
+            int confidenceByte = id % 4;
+            uint sequence = ConfidenceBuffer3[confidenceIndex];
+            uint chars[4] =
+            {
+                sequence >> 24,
+                (sequence & 0x00ff0000) >> 16,
+                (sequence & 0x0000ff00) >> 8,
+                (sequence & 0x000000ff)
+            };
+            if (chars[confidenceByte] == 0x0)
+            {
+                rawColor = 0x00000000;
+                pos = float3(0, 0, 0);
+            }
+        }
     }
     else
     {

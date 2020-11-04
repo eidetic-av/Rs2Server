@@ -22,6 +22,8 @@ namespace Eidetic.Rs2
         public const int CameraCount = 4;
         public const int DepthWidth = 640;
         public const int DepthHeight = 480;
+        public const int ColorWidth = 960;
+        public const int ColorHeight = 540;
         public const int CamPoints = DepthWidth * DepthHeight;
         public const int MaxPoints = CamPoints * CameraCount;
         public const int BufferSize = MaxPoints * sizeof(float) * 3 * 2;
@@ -90,23 +92,14 @@ namespace Eidetic.Rs2
                 driver.DeviceSerial = deviceSerial;
                 Drivers[deviceSerial] = driver;
 
+                driver.DepthResolution = (DepthWidth, DepthHeight);
+                driver.ColorResolution = (ColorWidth, ColorHeight);
+                driver.DepthFramerate = 30;
+                driver.ColorFramerate = 30;
                 if (deviceName.Contains("D435"))
-                {
-                    driver.DepthResolution = (DepthWidth, DepthHeight);
-                    driver.ColorResolution = (960, 540);
-                    // driver.DepthResolution = (848, 480);
-                    // driver.ColorResolution = (848, 480);
-                    driver.DepthFramerate = 30;
-                    driver.ColorFramerate = 30;
-                } else if (deviceName.Contains("L515"))
-                {
-                    // driver.DepthResolution = (1024, 768);
-                    // driver.ColorResolution = (1280, 720);
-                    driver.DepthResolution = (DepthWidth, DepthHeight);
-                    driver.ColorResolution = (960, 540);
-                    driver.DepthFramerate = 30;
-                    driver.ColorFramerate = 30;
-                }
+                    driver.Model = DeviceModel.D435;
+                else if (deviceName.Contains("L515"))
+                    driver.Model = DeviceModel.L515;
 
                 driver.ColorImage = GameObject.Find($"ColorTexture{Cameras.Count() - 1}")?
                     .GetComponent<UnityEngine.UI.RawImage>();
@@ -181,6 +174,10 @@ namespace Eidetic.Rs2
                 var dimensions = !dummy ? converter.Dimensions : math.int2(1, 1);
                 var colorBuffer = !dummy ? converter.ColorBuffer : new ComputeBuffer(1, 4);
                 var positionBuffer = !dummy ? converter.PositionBuffer : new ComputeBuffer(1, sizeof(float));
+                var useConfidence = !dummy ? converter.UseConfidenceFrame : false;                
+                //var useConfidence = false;
+
+                var confidenceBuffer = useConfidence ? converter.ConfidenceBuffer : new ComputeBuffer(1, 4);
                 var remapBuffer = !dummy ? converter.RemapBuffer : new ComputeBuffer(1, sizeof(float));
                 var rotation = !dummy ? Cameras[i].Rotation : Vector3.zero;
                 var preTranslation = !dummy ? Cameras[i].PreTranslation : Vector3.zero;
@@ -202,6 +199,8 @@ namespace Eidetic.Rs2
                 TransferShader.SetBuffer(0, $"ColorBuffer{i}", colorBuffer);
                 TransferShader.SetBuffer(0, $"PositionBuffer{i}", positionBuffer);
                 TransferShader.SetBuffer(0, $"RemapBuffer{i}", remapBuffer);
+                TransferShader.SetBool($"UseConfidenceBuffer{i}", useConfidence);
+                TransferShader.SetBuffer(0, $"ConfidenceBuffer{i}", confidenceBuffer);
             }
 
             TransferShader.SetInt("MaxPoints", MaxPoints);
@@ -228,7 +227,7 @@ namespace Eidetic.Rs2
 
             if (SendOverNetwork)
             {
-                if (NetworkStream.CanWrite)
+                if (NetworkStream != null && NetworkStream.CanWrite)
                 {
                     // wait until client response before sending
                     while (!NetworkStream.DataAvailable) {  }
@@ -354,5 +353,8 @@ namespace Eidetic.Rs2
 
         [Serializable]
         public enum MarkerSize { A3, A4 }
+
+        [Serializable]
+        public enum DeviceModel { D435, L515 }
     }
 }

@@ -13,10 +13,12 @@ namespace Eidetic.Rs2
     public class DepthConverter : System.IDisposable
     {
         public int2 Dimensions;
+        public bool UseConfidenceFrame = false;
 
         public ComputeBuffer ColorBuffer;
         public ComputeBuffer PositionBuffer;
         public ComputeBuffer RemapBuffer;
+        public ComputeBuffer ConfidenceBuffer;
 
         public (Vector4 color, Vector4 depth) Intrinsics;
 
@@ -43,6 +45,27 @@ namespace Eidetic.Rs2
             Intrinsics.color = IntrinsicsToVector(intrinsics);
             Dimensions = math.int2(frame.Width, frame.Height);
         }
+
+        // Load confidence data (a video frame) into the internal buffer.
+        public void LoadConfidenceData(RealSense.VideoFrame frame)
+        {
+            if (frame == null) return;
+            if (frame.Data == IntPtr.Zero) return;
+
+            var size = frame.Width * frame.Height / 4;
+
+            if (ConfidenceBuffer != null && ConfidenceBuffer.count != size)
+            {
+                ConfidenceBuffer.Dispose();
+                ConfidenceBuffer = null;
+            }
+
+            if (ConfidenceBuffer == null)
+                ConfidenceBuffer = new ComputeBuffer(size, 4);
+
+            UnsafeUtility.SetUnmanagedData(ConfidenceBuffer, frame.Data, size, 4);
+        }
+
 
         // Load point data (a Points instance) into the internal buffer.
         public void LoadPointData
@@ -88,6 +111,8 @@ namespace Eidetic.Rs2
             ColorBuffer = null;
             PositionBuffer?.Dispose();
             PositionBuffer = null;
+            ConfidenceBuffer?.Dispose();
+            ConfidenceBuffer = null;
             RemapBuffer?.Dispose();
             RemapBuffer = null;
         }

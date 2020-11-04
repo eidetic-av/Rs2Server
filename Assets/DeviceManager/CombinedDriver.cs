@@ -5,14 +5,15 @@ using Unity.Mathematics;
 using Intel.RealSense;
 using System.Threading;
 using UnityEngine.UI;
+using static Eidetic.Rs2.Rs2Server;
 
 namespace Eidetic.Rs2
 {
     // a lot of this was taken from Rsvfx by keijiro
-
     public sealed class CombinedDriver : MonoBehaviour
     {
         public string DeviceSerial;
+        public DeviceModel Model;
         public (int width, int height) DepthResolution;
         public (int width, int height) ColorResolution;
         public (Intrinsics color, Intrinsics depth) Intrinsics;
@@ -33,6 +34,8 @@ namespace Eidetic.Rs2
         public Texture2D ColorTexture;
 
         (VideoFrame color, Points points) Frame;
+        VideoFrame ConfidenceFrame;
+        bool UseConfidenceFrame => Model == DeviceModel.L515;
         double FrameTime;
 
         Pipeline Pipe;
@@ -70,9 +73,20 @@ namespace Eidetic.Rs2
                                 Frame.points?.Dispose();
                                 Frame.points = pc;
 
-                                using (var prof = df.
-                                       GetProfile<VideoStreamProfile>())
+                                using (var prof = df. GetProfile<VideoStreamProfile>())
                                     Intrinsics.depth = prof.GetIntrinsics();
+                            }
+                        }
+
+                        // Store the confidence map
+                        if (Model == DeviceModel.L515)
+                        {
+                            lock (FrameLock)
+                            {
+                                ConfidenceFrame?.Dispose();
+                                var confidence = fs[Stream.Confidence];
+                                confidence.Keep();
+                                ConfidenceFrame = confidence.As<VideoFrame>();
                             }
                         }
                     }
@@ -88,6 +102,10 @@ namespace Eidetic.Rs2
                 config.EnableDevice(DeviceSerial);
                 config.EnableStream(Stream.Depth, DepthResolution.width, DepthResolution.height, Format.Z16, DepthFramerate);
                 config.EnableStream(Stream.Color, ColorResolution.width, ColorResolution.height, Format.Rgba8, ColorFramerate);
+
+                if (Model == DeviceModel.L515)
+                    config.EnableStream(Stream.Confidence, DepthResolution.width, DepthResolution.height, Format.Raw8, DepthFramerate);
+
                 pipelineProfile = Pipe.Start(config);
             }
 
@@ -101,10 +119,6 @@ namespace Eidetic.Rs2
                 var laserPower = DepthSensor.Options[Option.LaserPower];
                 laserPower.Value = laserPower.Max;
             }
-            // Minimal confidence threshold to capture as many points as
-            // possible
-            if (DepthSensor.Options.Supports(Option.ConfidenceThreshold))
-                DepthSensor.Options[Option.ConfidenceThreshold].Value = 1f;
             // Capture closest distance points
             if (DepthSensor.Options.Supports(Option.MinDistance))
                 DepthSensor.Options[Option.MinDistance].Value = 0f;
@@ -112,7 +126,7 @@ namespace Eidetic.Rs2
             if (DepthSensor.Options.Supports(Option.PostProcessingSharpening))
                 DepthSensor.Options[Option.PostProcessingSharpening].Value = 0f;
             if (DepthSensor.Options.Supports(Option.PreProcessingSharpening))
-                DepthSensor.Options[Option.PreProcessingSharpening].Value = 0f;
+                DepthSensor.Options[Option.PreProcessingSharpening].Value = 2f;
             // Minimal on-board noise filtering
             if (DepthSensor.Options.Supports(Option.NoiseFilterLevel))
                 DepthSensor.Options[Option.NoiseFilterLevel].Value = 2f;
@@ -123,13 +137,57 @@ namespace Eidetic.Rs2
             if (ColorSensor.Options.Supports(Option.EnableAutoExposure))
                 ColorSensor.Options[Option.EnableAutoExposure].Value = 0f;
 
+            if (DepthSensor.Options.Supports(Option.ConfidenceThreshold))
+                DepthSensor.Options[Option.ConfidenceThreshold].Value = 3f;
+            if (DepthSensor.Options.Supports(Option.InvalidationBypass))
+                DepthSensor.Options[Option.InvalidationBypass].Value = 0f;
+
             // Worker thread activation
             ProcessThread = new Thread(ProcessFrames);
             ProcessThread.Start();
 
             // Local objects initialization
             Converter = new DepthConverter();
+            Converter.UseConfidenceFrame = UseConfidenceFrame;
         }
+
+        public void UpdateFrames()
+        {
+            var time = 0.0;
+            // Retrieve the depth frame data.
+            lock (FrameLock)
+            {
+                if (Frame.color == null) return;
+                if (Frame.points == null) return;
+                if (UseConfidenceFrame && ConfidenceFrame == null) return;
+
+                if (ColorImage != null)
+                {
+                    // Color data preview
+                    if (ColorTexture == null)
+                        ColorTexture = new Texture2D(Frame.color.Width, Frame.color.Height, Convert(Frame.color.Profile.Format), false, true);
+                    ColorTexture.LoadRawTextureData(Frame.color.Data, Frame.color.Stride * Frame.color.Height);
+
+                    // Confidence data preview
+                    // if (ColorTexture == null)
+                        // ColorTexture = new Texture2D(ConfidenceFrame.Width, ConfidenceFrame.Height, Convert(ConfidenceFrame.Profile.Format), false, true);
+                    // ColorTexture.LoadRawTextureData(ConfidenceFrame.Data, ConfidenceFrame.Stride * ConfidenceFrame.Height);
+
+                    ColorTexture.Apply();
+                    ColorImage.texture = ColorTexture;
+                }
+
+                Converter.LoadColorData(Frame.color, Intrinsics.color);
+                Converter.LoadPointData(Frame.points, Intrinsics.depth);
+                if (Model == DeviceModel.L515)
+                    Converter.LoadConfidenceData(ConfidenceFrame);
+                time = Frame.color.Timestamp;
+            }
+
+            // Record the timestamp of the depth frame.
+            FrameTime = time;
+        }
+
 
         float exposureValue;
         float brightnessValue;
@@ -213,32 +271,6 @@ namespace Eidetic.Rs2
             GameObject.Destroy(gameObject);
         }
 
-        public void UpdateFrames()
-        {
-            var time = 0.0;
-            // Retrieve the depth frame data.
-            lock (FrameLock)
-            {
-                if (Frame.color == null) return;
-                if (Frame.points == null) return;
-
-                if (ColorImage != null)
-                {
-                    if (ColorTexture == null)
-                        ColorTexture = new Texture2D(Frame.color.Width, Frame.color.Height, Convert(Frame.color.Profile.Format), false, true);
-                    ColorTexture.LoadRawTextureData(Frame.color.Data, Frame.color.Stride * Frame.color.Height);
-                    ColorTexture.Apply();
-                    ColorImage.texture = ColorTexture;
-                }
-
-                Converter.LoadColorData(Frame.color, Intrinsics.color);
-                Converter.LoadPointData(Frame.points, Intrinsics.depth);
-                time = Frame.color.Timestamp;
-            }
-
-            // Record the timestamp of the depth frame.
-            FrameTime = time;
-        }
 
         private static TextureFormat Convert(Format lrsFormat)
         {
